@@ -31,7 +31,7 @@
   - docs/review 与架构回写完整收口
 
 ## 仍需关注的风险
-- 当前 rollback drill 只覆盖 `CI Smoke Tier / standalone.split-services.development`，不能外推到多 cell / 多 region。
+- 当前 rollback drill 只覆盖 `CI Smoke Tier / standalone.development`，不能外推到多 cell / 多 region。
 - `rollbackActivationMs = 0.007` 只是本地内存路径结果，不是控制面真实分发延迟。
 - `compatibilityMatrixPassRate = 1.0` 与 `postRollbackProtocolErrorRate = 0.0` 只说明 safe path preserved，不说明高阶 rollout orchestration 已完成。
 

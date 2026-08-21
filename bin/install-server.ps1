@@ -1,10 +1,10 @@
 param(
     [string]$InstanceName = "default",
-    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "chat")),
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
-    [string]$DataDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Data")),
-    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
-    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Run")),
+    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "im")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")),
+    [string]$DataDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Data")),
+    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Logs")),
+    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Run")),
     [switch]$NonInteractive,
     [switch]$Force,
     [switch]$Help
@@ -27,7 +27,7 @@ function Get-ServerPathForInstance {
     return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
 }
 
-$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
     $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
 }
@@ -81,8 +81,8 @@ foreach ($path in @($InstallRoot, $ConfigDir, $DataDir, $LogDir, $RunDir)) {
 
 $copies = @(
     @{
-        Source = (Resolve-ServerTemplatePath -PackagedRelativePaths @("config\chat.toml.example", "config\server.yaml.example") -SourceRelativePath "deployments\templates\chat.toml.example")
-        Destination = (Join-Path $ConfigDir "chat.toml.example")
+        Source = (Resolve-ServerTemplatePath -PackagedRelativePaths @("config\config.toml.example", "config\server.yaml.example") -SourceRelativePath "deployments\templates\config.toml.example")
+        Destination = (Join-Path $ConfigDir "config.toml.example")
     },
     @{
         Source = (Resolve-ServerTemplatePath -PackagedRelativePaths @("config\server.env.example") -SourceRelativePath "deployments\templates\server.env.example")

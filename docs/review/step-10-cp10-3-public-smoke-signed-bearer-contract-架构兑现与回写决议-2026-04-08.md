@@ -22,7 +22,7 @@
 
 ## 是否偏离架构
 - 无偏离。
-- 本轮沿用既有 `retired-lifecycle-deploy` / `local_stack_smoke.*` / `standalone.split-services.development.yml` 交付面收敛认证合同，没有引入新的旁路脚本，也没有制造新的平台差异。
+- 本轮沿用既有 `retired-lifecycle-deploy` / `local_stack_smoke.*` / `standalone.development.yml` 交付面收敛认证合同，没有引入新的旁路脚本，也没有制造新的平台差异。
 
 ## 回写决议
 - `docs/架构/09-实施计划.md` 追加 `As-Built 100`

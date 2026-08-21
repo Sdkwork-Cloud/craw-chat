@@ -13,7 +13,7 @@
   - `CP10-2` 在本轮之前仍缺少三类闭环
     - 多环profile 的真实边界没有形成稳定文档合
     - `retired-lifecycle-deploy` PowerShell / CMD / Bash 上尚未统一支持 profile 选择
-    - 快启文档与根 README 还没有把 `standalone.split-services.development` 的入口语义写实到当前脚本合同
+    - 快启文档与根 README 还没有把 `standalone.development` 的入口语义写实到当前脚本合同
 
 ## 本轮为什么做这个子任
 - `docs/step/10-部署脚本与多环境发布治理.md` `CP10-2` 的要求是
@@ -22,8 +22,8 @@
 - `docs/step/95-架构能力闭环验收标准.md` `Step 10` 的要求是
   - 不能只存在脚本文件，必须有真实可回归的交付入口和文档语义
 - 因此本轮最优决策不是假装所有未profile 都已经可执行，而是先冻结当前仓库里真实存在的：
-  - `standalone.split-services.development`
-  - `standalone.split-services.development`
+  - `standalone.development`
+  - `standalone.development`
   - profile template 入口
   - `retired-lifecycle-deploy` 的跨平台选择合同
 
@@ -32,12 +32,12 @@
 ### 1. 多环profile 与模板边界已冻结
 - 新增 `docs/部署/多环境Profile与配置模md`
   - 明确区分
-    - 已落地并可引用的 `standalone.split-services.development`
-    - 已命名、已compose/template 入口但仍复用 `standalone.split-services.development` 服务合同`standalone.split-services.development`
+    - 已落地并可引用的 `standalone.development`
+    - 已命名、已compose/template 入口但仍复用 `standalone.development` 服务合同`standalone.development`
     - 仅处于规划边界的 `private-saas-single-cell`、`cloud-shared-cell`、`cloud-dedicated-cell`
 - 新增长
-  - `deployments/templates/standalone.split-services.development.env.example`
-  - `deployments/templates/standalone.split-services.development.env.example`
+  - `deployments/templates/standalone.development.env.example`
+  - `deployments/templates/standalone.development.env.example`
 - 模板当前冻结的公共合同为
   - `sdkwork_im_BIND_ADDR`
   - `sdkwork_im_RUNTIME_DIR`
@@ -45,14 +45,14 @@
 
 ### 2. `retired-lifecycle-deploy` 已变成真实的 profile-aware 交付入口
 - `pnpm dev`
-  - 新增 `-ProfileName <standalone.split-services.development|standalone.split-services.development>`
+  - 新增 `-ProfileName <standalone.development|standalone.development>`
   - 明确：profile 选择转发送`bootstrap-local.ps1`
 - `deployments/scripts/bootstrap-local.ps1`
   - 新增 `-ProfileName`
   - profile 名称动态派compose 文件
   - 错误信息、compose 诊断、smoke 结果均带 profile 语义
 - `pnpm dev`
-  - 新增 `--profile <standalone.split-services.development|standalone.split-services.development>`
+  - 新增 `--profile <standalone.development|standalone.development>`
   - profile 动态派compose 文件
   - 统一 profile 校验与诊断输
 - `bin/_cmd-forward-powershell.cmd`
@@ -66,16 +66,16 @@
     - `test_deploy_local_scripts_expose_profile_selection_contract`
     - `test_deploy_local_ps1_forwards_profile_name_to_bootstrap_script`
     - `test_deploy_local_cmd_normalizes_profile_name_switch`
-  - fresh verification 中继续发现旧资产测试仍硬编码 `standalone.split-services.development.yml`
+  - fresh verification 中继续发现旧资产测试仍硬编码 `standalone.development.yml`
   - 已把旧断言修正为“profile 驱动 compose 选择”的真实契约
   - 已补充快启文档contract 断言，确`retired-lifecycle-deploy` profile selector 不会再次从文档中漂移
 - `docs/部署/README.md`
   - 已公开多环profile/template 文档入口
 - `docs/部署/快速启动脚md`
   - 已明确：
-    - `retired-lifecycle-deploy` 支持 `standalone.split-services.development` / `standalone.split-services.development`
-    - PowerShell / CMD 使用 `-ProfileName <standalone.split-services.development|standalone.split-services.development>`
-    - Bash 使用 `--profile <standalone.split-services.development|standalone.split-services.development>`
+    - `retired-lifecycle-deploy` 支持 `standalone.development` / `standalone.development`
+    - PowerShell / CMD 使用 `-ProfileName <standalone.development|standalone.development>`
+    - Bash 使用 `--profile <standalone.development|standalone.development>`
 - `README.md`
   - 已把根文档的 Docker 入口说明升级为统一 `bin/retired-lifecycle-deploy.*` profile-aware 用法
 
@@ -91,7 +91,7 @@
 - `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deploy_local_cmd_normalizes_profile_name_switch`
   - 初始失败，证CMD 参数兼容层尚未收口profile 语义
 - `cargo test -p sdkwork-api-im-standalone-gateway --offline test_quick_start_doc_freezes_full_local_command_surface -- --exact`
-  - 本轮补充文档 contract 后先失败，证`快速启动脚md` 还未公开 `standalone.split-services.development` `profile selector`
+  - 本轮补充文档 contract 后先失败，证`快速启动脚md` 还未公开 `standalone.development` `profile selector`
 
 ### Green
 - `cargo test -p sdkwork-api-im-standalone-gateway --offline test_deployment_profiles_and_templates_document_local_minimal_and_local_default_contracts`

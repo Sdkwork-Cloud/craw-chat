@@ -32,7 +32,7 @@
 ## 当前发布边界
 - 当前版本已经具备：
   - 本地最小交付链路
-  - `standalone.split-services.development` / `standalone.split-services.development` profile 入口
+  - `standalone.development` / `standalone.development` profile 入口
   - 运行时检查、修复、备份、恢复、归档与裁剪入口
   - CLI 主链路验证
   - CCP compatibility / governance / control-plane baseline

@@ -7,7 +7,7 @@
   - slot 明细已经变化
   - 摘要计数没有同步更新
   - 结构化 evidence index 内部自相矛盾
-- 当前环境依然没有真实 `standalone.split-services.development` 发布后执行窗口，因此本轮继续不伪造真实证据，只把“摘要必须由 slot 明细推导”固定成回归门禁与文档合同。
+- 当前环境依然没有真实 `standalone.development` 发布后执行窗口，因此本轮继续不伪造真实证据，只把“摘要必须由 slot 明细推导”固定成回归门禁与文档合同。
 
 ## 2. 实际落地
 
@@ -24,7 +24,7 @@
 ### 2.2 operator / release 文档已明确 source-of-truth 关系
 
 - 更新：`artifacts/releases/README.md`
-- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.split-services.development/README.md`
+- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.development/README.md`
 - 更新：`docs/部署/性能与灾备演练场景.md`
 - 更新：`docs/部署/性能与灾备演练场景.md`
 - 当前文档已明确：

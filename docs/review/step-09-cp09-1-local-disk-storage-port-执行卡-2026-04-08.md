@@ -13,7 +13,7 @@
 ## 本轮为什么做这个子任务
 - `docs/step/09-存储投影与可观测治理.md` 把 `CP09-1` 明确成“存储抽象与适配边界已统一”。
 - `docs/架构/132-存储架构与自主演进路线设计-2026-04-06.md` 已冻结 `MetadataStore`、投影模型与“先抽象、后替换底层”的实施原则。
-- 如果 `local-memory` 和 `local-disk` 对平台契约的覆盖面不对齐，`managed standalone.split-services.development` 就无法被视为真实存储适配基线，`CP09-1` 只能停留在“有 trait、无完整 adapter”的伪完成状态。
+- 如果 `local-memory` 和 `local-disk` 对平台契约的覆盖面不对齐，`managed standalone.development` 就无法被视为真实存储适配基线，`CP09-1` 只能停留在“有 trait、无完整 adapter”的伪完成状态。
 
 ## 本轮实际完成
 

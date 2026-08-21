@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/sdkwork/chat
-EnvironmentFile=/etc/sdkwork/chat/server.env
-ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway
+WorkingDirectory=/opt/sdkwork/im
+EnvironmentFile=/etc/sdkwork/im/server.env
+ExecStart=/opt/sdkwork/im/bin/sdkwork-api-im-standalone-gateway
 Restart=on-failure
 RestartSec=5
 

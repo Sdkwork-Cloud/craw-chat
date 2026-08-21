@@ -25,9 +25,9 @@ directory.
 Packaged installations retain the deployment paths declared in
 `deployments/templates/server.env.example`:
 
-- data: `/var/lib/sdkwork/chat`
-- logs: `/var/log/sdkwork/chat`
-- run: `/run/sdkwork/chat`
+- data: `/var/lib/sdkwork/im`
+- logs: `/var/log/sdkwork/im`
+- run: `/run/sdkwork/im`
 
 These paths describe filesystem ownership and process layout, not database ownership. See
 [Server Lifecycle](/deployment/server-lifecycle).

@@ -211,8 +211,8 @@ function createServerStagingActions({ packageItem, root, stagingRoot }) {
 
   actions.push(
     copyAction(
-      path.join(root, 'deployments', 'templates', 'chat.toml.example'),
-      path.join(stagingRoot, 'config', 'chat.toml.example'),
+      path.join(root, 'deployments', 'templates', 'config.toml.example'),
+      path.join(stagingRoot, 'config', 'config.toml.example'),
       'server config template',
       true,
       stagingRoot,
@@ -468,7 +468,7 @@ function createServerEnvExample(packageItem) {
   return [
     `SDKWORK_IM_DEPLOYMENT_PROFILE=${packageItem.deploymentProfile}`,
     `SDKWORK_IM_RUNTIME_TARGET=${packageItem.runtimeTarget}`,
-    `SDKWORK_IM_CONFIG_FILE=${paths.configDir}/chat.toml`,
+    `SDKWORK_IM_CONFIG_FILE=${paths.configDir}/config.toml`,
     `SDKWORK_IM_DATA_DIR=${paths.dataDir}`,
     `SDKWORK_IM_LOG_DIR=${paths.logDir}`,
     `SDKWORK_IM_RUN_DIR=${paths.runDir}`,
@@ -518,7 +518,7 @@ function createInstallGuide(packageItem) {
     '',
     '- `bin/sdkwork-api-im-standalone-gateway` or `bin/sdkwork-api-im-standalone-gateway.exe`: release server binary.',
     '- `bin/*server.*`: install, config, storage, service, start, stop, restart, and status helpers.',
-    '- `config/chat.toml.example`: server runtime config template.',
+    '- `config/config.toml.example`: server runtime config template.',
     '- `config/server.env.example`: environment template with packaged web site directories.',
     '- `config/postgresql.yaml.example`: PostgreSQL template using file-based password storage.',
     '- `service/`: systemd, launchd, and Windows service templates.',
@@ -527,7 +527,7 @@ function createInstallGuide(packageItem) {
     '',
     '## Quick Start',
     '',
-    '1. Copy `config/chat.toml.example` to your runtime `chat.toml`.',
+    '1. Copy `config/config.toml.example` to your runtime `config.toml`.',
     '2. Copy `config/server.env.example` to your runtime `server.env`.',
     '3. Update PostgreSQL host, database, username, and password file path.',
     '4. Start the server:',

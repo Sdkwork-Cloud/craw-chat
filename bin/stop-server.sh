@@ -10,8 +10,8 @@ EOF
 }
 
 instance_name="default"
-config_dir="/etc/sdkwork/chat"
-run_dir="/run/sdkwork/chat"
+config_dir="/etc/sdkwork/im"
+run_dir="/run/sdkwork/im"
 
 server_path_for_instance() {
   local root="$1"
@@ -27,8 +27,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
-      run_dir="$(server_path_for_instance "/run/sdkwork/chat" "$instance_name")"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/im" "$instance_name")"
+      run_dir="$(server_path_for_instance "/run/sdkwork/im" "$instance_name")"
       shift 2
       ;;
     --config-dir)

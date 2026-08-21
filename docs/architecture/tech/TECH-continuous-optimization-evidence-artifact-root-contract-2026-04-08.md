@@ -5,28 +5,28 @@
 
 ## 1. 本轮背景
 
-- 上一轮已经为 `standalone.split-services.development` 的 evidence index 冻结了 slot 级元数据字段：
+- 上一轮已经为 `standalone.development` 的 evidence index 冻结了 slot 级元数据字段：
   - `artifactPath`
   - `collectedAt`
   - `checksumSha256`
 - 但如果没有一个顶层 evidence root，`artifactPath` 仍然可能在不同 bundle、不同 operator 之间各写各的相对路径。
-- 当前环境依旧没有真实 `standalone.split-services.development` 发布后执行窗口，因此本轮不伪造任何真实归档文件，只先固定 artifact root contract 和模板态占位目录。
+- 当前环境依旧没有真实 `standalone.development` 发布后执行窗口，因此本轮不伪造任何真实归档文件，只先固定 artifact root contract 和模板态占位目录。
 
 ## 2. 实际落地
 
 ### 2.1 evidence index 已新增顶层 `artifactRoot`
 
 - 更新：`artifacts/releases/schemas/post-release-evidence-index.schema.json`
-- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.split-services.development-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.development-post-release-evidence-index.json`
 - 当前 evidence index 已固定：
-  - `artifactRoot = artifacts/releases/wave-d-2026-04-08/evidence/standalone.split-services.development`
+  - `artifactRoot = artifacts/releases/wave-d-2026-04-08/evidence/standalone.development`
 - 这让后续每个 slot 的 `artifactPath` 都有单一锚点，而不是继续依赖口头约定。
 
 ### 2.2 bundle 内已建立模板态 evidence root 占位目录
 
-- 新增：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.split-services.development/README.md`
+- 新增：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.development/README.md`
 - 当前占位目录已明确：
-  - 这是 `standalone.split-services.development` post-release 真实归档证据未来应落入的根目录
+  - 这是 `standalone.development` post-release 真实归档证据未来应落入的根目录
   - 当前状态仍是 `template_only_pending_collection`
   - `artifactPath` 应解析到该目录之下
 

@@ -49,7 +49,7 @@ converting `https://` to `wss://` and `http://` to `ws://`.
 ## Installed server packages
 
 For installed server packages, prefer the explicit `SDKWORK_IM_APPLICATION_PUBLIC_*` and
-`SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` values in `/etc/sdkwork/chat/server.env` so generated
+`SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` values in `/etc/sdkwork/im/server.env` so generated
 server config, logs, docs, and release manifests all point at the same public surface contract.
 
 Copy from `deployments/templates/server.env.example` and adjust hostnames for your deployment profile.

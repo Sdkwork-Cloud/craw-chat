@@ -6,14 +6,14 @@
 
 ## P0：持续优化首批输入
 - 建立多语言 SDK 的真实生成、版本冻结与发布归档链路，避免当前 README / facade 边界长期停留在占位与契约层。
-- 把 `Pre-Release Tier` 与 `Capacity Tier` 纳入可重复执行的量化门禁，避免 `Step 11` 的证据长期只停留在 `CI Smoke Tier / standalone.split-services.development`。
+- 把 `Pre-Release Tier` 与 `Capacity Tier` 纳入可重复执行的量化门禁，避免 `Step 11` 的证据长期只停留在 `CI Smoke Tier / standalone.development`。
 - 把 `open-chat-test` 的 scripted validation 向 Bash 路径补齐与固化，形成跨脚本入口的对称 E2E 证据。
 - 梳理 close / error registry 的客户端恢复策略，让 CLI / SDK / operator 文档对 session disconnect、overload、goaway、resume fallback 的处理基线更完整。
 
 ## P1：发布与运维深化
 - 形成正式 release bundle 产物目录与版本归档约定，把本轮 `review` 结论提升为可归档、可审计、可回滚的发布物。
 - 把 `status / inspect / repair / archive / prune / preview / restore` 的帮助面核对升级为最小 smoke 行为核对。
-- 为 `standalone.split-services.development` 追加与 `standalone.split-services.development` 对称的关键发布后验证样本，避免 profile 只在帮助面和模板层对齐。
+- 为 `standalone.development` 追加与 `standalone.development` 对称的关键发布后验证样本，避免 profile 只在帮助面和模板层对齐。
 
 ## P1：架构与治理深化
 - 把 Wave D 的发布基线回写到更细粒度的部署、HA/DR、观测与协议治理架构文档中，形成“发布边界”和“下一轮不做什么”的显式约束。

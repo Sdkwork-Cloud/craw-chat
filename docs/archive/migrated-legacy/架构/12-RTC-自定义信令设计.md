@@ -171,7 +171,7 @@ RTC 相关能力拆成两层：
 
 ## 8. 存储与可靠性标准
 
-当前 `standalone.split-services.development` 实现使用内存存储，定位是本地可运行基线，不代表生产最终形态。
+当前 `standalone.development` 实现使用内存存储，定位是本地可运行基线，不代表生产最终形态。
 
 生产版标准建议如下：
 

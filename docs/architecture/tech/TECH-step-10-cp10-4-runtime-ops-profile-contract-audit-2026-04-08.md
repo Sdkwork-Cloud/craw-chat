@@ -23,9 +23,9 @@
 
 ## 正向结果
 - runtime ops 的 profile 选择已不再只存在于 `retired-lifecycle-deploy`，而是进入 inspect / repair / backup / restore 全链路。
-- `standalone.split-services.development` 没有被误实现成新的独立 runtime 拓扑，而是按既有架构约束：
-  - 优先读 `standalone.split-services.development` config
-  - 继续复用 `standalone.split-services.development` runtime contract
+- `standalone.development` 没有被误实现成新的独立 runtime 拓扑，而是按既有架构约束：
+  - 优先读 `standalone.development` config
+  - 继续复用 `standalone.development` runtime contract
 - PowerShell temp-workspace 回归模型已被保留，没有因为共享 helper 引入新的脆弱耦合。
 - `deployment_profile_test` 现在同时覆盖：
   - 脚本文本合同
@@ -34,7 +34,7 @@
   - Bash profile 解析行为
 
 ## 仍需关注的风险
-- `standalone.split-services.development` 当前仍不是独立运行拓扑；这不是 bug，而是当前冻结架构的明确选择。
+- `standalone.development` 当前仍不是独立运行拓扑；这不是 bug，而是当前冻结架构的明确选择。
 - Git Bash 在当前宿主环境中执行 standalone `--help` 会命中 `couldn't create signal pipe, Win32 error 5`，因此 shell 帮助命令不能作为唯一放行证据。
 - 但这不影响 `CP10-4` 结论，因为更强的 `deployment_profile_test` 已 fresh 执行 Bash runtime ops 行为回归。
 
@@ -45,7 +45,7 @@
 - `cmd /c bin\\inspect-runtime-local.cmd --help`
 
 ## 复盘结论
-- 本轮最关键的决策是没有把 `standalone.split-services.development` 扩成新的 runtime 目录体系，而是只把 runtime ops 做成 profile-aware。
+- 本轮最关键的决策是没有把 `standalone.development` 扩成新的 runtime 目录体系，而是只把 runtime ops 做成 profile-aware。
 - 这样做的收益是：
   - 与 `CP10-2` 已冻结的 profile/template 合同保持一致
   - 避免把 `CP10-4` 扩散成新的部署拓扑重构

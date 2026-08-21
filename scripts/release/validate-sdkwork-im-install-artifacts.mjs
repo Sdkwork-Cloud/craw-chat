@@ -282,32 +282,32 @@ function validateDebArtifact(packageItem, artifactBytes) {
   }
   const expectedArchitecture = packageItem.architecture === 'arm64' ? 'arm64' : 'amd64';
   const requiredPaths = [
-    `./usr/lib/sdkwork/chat/bin/${packageItem.binaryName}`,
-    './usr/share/doc/sdkwork/chat/INSTALL.md',
-    './usr/share/sdkwork/chat/install-manifest.json',
-    './usr/lib/systemd/system/sdkwork-chat.service',
-    './usr/lib/sdkwork/chat/sdkwork.app.config.json',
-    './usr/lib/sdkwork/chat/database/database.manifest.json',
+    `./usr/lib/sdkwork/im/bin/${packageItem.binaryName}`,
+    './usr/share/doc/sdkwork/im/INSTALL.md',
+    './usr/share/sdkwork/im/install-manifest.json',
+    './usr/lib/systemd/system/sdkwork-im.service',
+    './usr/lib/sdkwork/im/sdkwork.app.config.json',
+    './usr/lib/sdkwork/im/database/database.manifest.json',
   ];
   for (const requiredPath of requiredPaths) {
     if (!dataEntries.has(requiredPath)) {
       issues.push(`${packageItem.id} .deb missing ${requiredPath}`);
     }
   }
-  if (![...dataEntries.keys()].some((name) => name.startsWith('./etc/sdkwork/chat/') && name.endsWith('.example'))) {
-    issues.push(`${packageItem.id} .deb must install config templates under ./etc/sdkwork/chat/`);
+  if (![...dataEntries.keys()].some((name) => name.startsWith('./etc/sdkwork/im/') && name.endsWith('.example'))) {
+    issues.push(`${packageItem.id} .deb must install config templates under ./etc/sdkwork/im/`);
   }
-  if (![...dataEntries.keys()].some((name) => name.startsWith('./usr/share/sdkwork/chat/web/sdkwork-im-pc/dist/'))) {
-    issues.push(`${packageItem.id} .deb must install PC web assets under ./usr/share/sdkwork/chat/web/`);
+  if (![...dataEntries.keys()].some((name) => name.startsWith('./usr/share/sdkwork/im/web/sdkwork-im-pc/dist/'))) {
+    issues.push(`${packageItem.id} .deb must install PC web assets under ./usr/share/sdkwork/im/web/`);
   }
-  if (![...dataEntries.keys()].some((name) => name.startsWith('./var/lib/sdkwork/chat/modules/sdkwork-iam/database/'))) {
-    issues.push(`${packageItem.id} .deb must install embedded modules under ./var/lib/sdkwork/chat/modules/`);
+  if (![...dataEntries.keys()].some((name) => name.startsWith('./var/lib/sdkwork/im/modules/sdkwork-iam/database/'))) {
+    issues.push(`${packageItem.id} .deb must install embedded modules under ./var/lib/sdkwork/im/modules/`);
   }
-  const binaryEntry = dataEntries.get(`./usr/lib/sdkwork/chat/bin/${packageItem.binaryName}`);
+  const binaryEntry = dataEntries.get(`./usr/lib/sdkwork/im/bin/${packageItem.binaryName}`);
   if (binaryEntry && binaryEntry.mode !== 0o755) {
     issues.push(`${packageItem.id} .deb gateway binary must be 0755`);
   }
-  const manifestEntry = dataEntries.get('./usr/share/sdkwork/chat/install-manifest.json');
+  const manifestEntry = dataEntries.get('./usr/share/sdkwork/im/install-manifest.json');
   if (manifestEntry) {
     try {
       const installedManifest = JSON.parse(manifestEntry.data.toString('utf8'));
@@ -465,7 +465,7 @@ function validateArchiveEntries(packageItem, entries) {
   if (packageItem.profile === 'server') {
     for (const requiredEntry of [
       `bin/${packageItem.binaryName}`,
-      'config/chat.toml.example',
+      'config/config.toml.example',
       'config/server.env.example',
       'config/postgresql.yaml.example',
       'INSTALL.md',

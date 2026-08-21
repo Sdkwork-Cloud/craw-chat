@@ -216,5 +216,5 @@
     "docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md",
     "docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md"
   ],
-  "boundary": "All seven artifact slots are populated only by doc-captured backfill from published CI Smoke Tier / self-hosted.split-services.development evidence. Capacity Tier remains evidence_collected_gate_blocked until a dedicated capacity-dedicated topology run produces direct evidence."
+  "boundary": "All seven artifact slots are populated only by doc-captured backfill from published CI Smoke Tier / standalone.development evidence. Capacity Tier remains evidence_collected_gate_blocked until a dedicated capacity-dedicated topology run produces direct evidence."
 }

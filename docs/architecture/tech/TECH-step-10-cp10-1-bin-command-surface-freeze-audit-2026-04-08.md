@@ -31,7 +31,7 @@
 - 新增测试已经把“文档是否真的冻结命令面”纳入 `deployment_profile_test`，后续回归若删漏命令面会直接失败。
 
 ## 剩余风险
-- 当前冻结的是 `standalone.split-services.development` 命令面，不等于多环境 profile 已经建成。
+- 当前冻结的是 `standalone.development` 命令面，不等于多环境 profile 已经建成。
 - `retired-lifecycle-deploy` 与更完整的多环境 profile/template 仍需在 `CP10-2` 中继续收敛。
 - Bash 脚本在当前 Windows 沙箱中无法直接做 shell 级 `--help` 执行验证；这仍属于环境限制，不构成当前子任务阻塞。
 

@@ -29,7 +29,7 @@
 
 ## 残余风险
 
-- 当前仅冻结 `CI Smoke / standalone.split-services.development` 入口，尚未扩展到 `Pre-Release Tier` 的独立 evidence 索引
+- 当前仅冻结 `CI Smoke / standalone.development` 入口，尚未扩展到 `Pre-Release Tier` 的独立 evidence 索引
 - `failover` 指标仍以单轮本地演练为主，尚未形成统一 artifact schema
 
 ## 下一步

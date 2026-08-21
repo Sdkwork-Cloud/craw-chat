@@ -21,7 +21,7 @@
   - `artifactRoot`
 - `Pre-Release Tier`
   - `gateTemplate = tools/perf/step-11-pre-release-tier-gate.json`
-  - `profile = standalone.split-services.development`
+  - `profile = standalone.development`
   - `artifactRoot = artifacts/perf/step-11/pre-release`
 - `Capacity Tier`
   - `gateTemplate = tools/perf/step-11-capacity-tier-gate.json`
@@ -47,7 +47,7 @@
 ## 下一步
 
 - 如需继续缩短自动化解析路径，可再把高阶 tier 的最小摘要字段继续上浮到 catalog
-- 如环境允许，下一轮更有价值的是开始回填一轮真实 `standalone.split-services.development` 的 `Pre-Release Tier` 样本
+- 如环境允许，下一轮更有价值的是开始回填一轮真实 `standalone.development` 的 `Pre-Release Tier` 样本
 ## 2026-04-09 Addendum
 
 - This gap is now closed.

@@ -10,10 +10,10 @@ EOF
 }
 
 instance_name="default"
-config_dir="/etc/sdkwork/chat"
-data_dir="/var/lib/sdkwork/chat"
-log_dir="/var/log/sdkwork/chat"
-run_dir="/run/sdkwork/chat"
+config_dir="/etc/sdkwork/im"
+data_dir="/var/lib/sdkwork/im"
+log_dir="/var/log/sdkwork/im"
+run_dir="/run/sdkwork/im"
 bind_address="0.0.0.0:18079"
 base_url="http://127.0.0.1:18079"
 api_base_url="http://127.0.0.1:18079"
@@ -36,10 +36,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
-      data_dir="$(server_path_for_instance "/var/lib/sdkwork/chat" "$instance_name")"
-      log_dir="$(server_path_for_instance "/var/log/sdkwork/chat" "$instance_name")"
-      run_dir="$(server_path_for_instance "/run/sdkwork/chat" "$instance_name")"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/im" "$instance_name")"
+      data_dir="$(server_path_for_instance "/var/lib/sdkwork/im" "$instance_name")"
+      log_dir="$(server_path_for_instance "/var/log/sdkwork/im" "$instance_name")"
+      run_dir="$(server_path_for_instance "/run/sdkwork/im" "$instance_name")"
       shift 2
       ;;
     --config-dir)
@@ -99,7 +99,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 server_env="${config_dir}/server.env"
-chat_toml="${config_dir}/chat.toml"
+config_toml="${config_dir}/config.toml"
 postgresql_yaml="${config_dir}/postgresql.yaml"
 password_file="${config_dir}/database.secret"
 redis_secret="${config_dir}/redis.secret"
@@ -114,7 +114,7 @@ write_if_needed() {
   fi
 }
 
-write_if_needed "$chat_toml" "[runtime]
+write_if_needed "$config_toml" "[runtime]
 environment = \"production\"
 deployment_profile = \"standalone\"
 runtime_target = \"server\"
@@ -132,7 +132,7 @@ docs_base_url = \"${base_url}/docs\"
 
 [paths]
 config_directory = \"${config_dir}\"
-config_file = \"${chat_toml}\"
+config_file = \"${config_toml}\"
 data_directory = \"${data_dir}\"
 log_directory = \"${log_dir}\"
 cache_directory = \"${data_dir}/cache\"
@@ -162,7 +162,7 @@ max_connections = 16
 
 write_if_needed "$server_env" "SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
 SDKWORK_IM_RUNTIME_TARGET=server
-SDKWORK_IM_CONFIG_FILE=${chat_toml}
+SDKWORK_IM_CONFIG_FILE=${config_toml}
 SDKWORK_IM_DATA_DIR=${data_dir}
 SDKWORK_IM_LOG_DIR=${log_dir}
 SDKWORK_IM_RUN_DIR=${run_dir}
@@ -217,6 +217,6 @@ if [[ ! -f "$password_file" || "$force_write" -eq 1 ]]; then
 fi
 
 echo "Rendered sdkwork-api-im-standalone-gateway configuration for instance '${instance_name}'."
-echo "chat.toml: ${chat_toml}"
+echo "config.toml: ${config_toml}"
 echo "server.env: ${server_env}"
 echo "postgresql.yaml: ${postgresql_yaml}"

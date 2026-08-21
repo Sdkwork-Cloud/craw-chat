@@ -5,12 +5,12 @@ runtime_target = "desktop"
 app_code = "chat"
 
 [paths]
-config_directory = "~/.sdkwork/chat/config"
-config_file = "~/.sdkwork/chat/config/chat.toml"
-data_directory = "~/.sdkwork/chat/data"
-log_directory = "~/.sdkwork/chat/logs"
-cache_directory = "~/.sdkwork/chat/cache"
-runtime_directory = "~/.sdkwork/chat/tmp"
+config_directory = "~/.sdkwork/im/config"
+config_file = "~/.sdkwork/im/config/config.toml"
+data_directory = "~/.sdkwork/im/data"
+log_directory = "~/.sdkwork/im/logs"
+cache_directory = "~/.sdkwork/im/cache"
+runtime_directory = "~/.sdkwork/im/tmp"
 
 # Desktop user data is client-local browser/native storage. A backend service
 # started for desktop development uses the separate server PostgreSQL profile.

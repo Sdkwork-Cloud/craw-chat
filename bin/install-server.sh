@@ -10,11 +10,11 @@ EOF
 }
 
 instance_name="default"
-install_root="/opt/sdkwork/chat"
-config_dir="/etc/sdkwork/chat"
-data_dir="/var/lib/sdkwork/chat"
-log_dir="/var/log/sdkwork/chat"
-run_dir="/run/sdkwork/chat"
+install_root="/opt/sdkwork/im"
+config_dir="/etc/sdkwork/im"
+data_dir="/var/lib/sdkwork/im"
+log_dir="/var/log/sdkwork/im"
+run_dir="/run/sdkwork/im"
 non_interactive=0
 force_copy=0
 
@@ -32,10 +32,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
-      data_dir="$(server_path_for_instance "/var/lib/sdkwork/chat" "$instance_name")"
-      log_dir="$(server_path_for_instance "/var/log/sdkwork/chat" "$instance_name")"
-      run_dir="$(server_path_for_instance "/run/sdkwork/chat" "$instance_name")"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/im" "$instance_name")"
+      data_dir="$(server_path_for_instance "/var/lib/sdkwork/im" "$instance_name")"
+      log_dir="$(server_path_for_instance "/var/log/sdkwork/im" "$instance_name")"
+      run_dir="$(server_path_for_instance "/run/sdkwork/im" "$instance_name")"
       shift 2
       ;;
     --install-root)
@@ -113,7 +113,7 @@ copy_if_needed() {
   fi
 }
 
-copy_if_needed "$(resolve_template_path "config/chat.toml.example|config/server.yaml.example" "deployments/templates/chat.toml.example")" "${config_dir}/chat.toml.example"
+copy_if_needed "$(resolve_template_path "config/config.toml.example|config/server.yaml.example" "deployments/templates/config.toml.example")" "${config_dir}/config.toml.example"
 copy_if_needed "$(resolve_template_path "config/server.env.example" "deployments/templates/server.env.example")" "${config_dir}/server.env.example"
 copy_if_needed "$(resolve_template_path "config/postgresql.yaml.example|config/storage/postgresql.yaml.example" "deployments/templates/postgresql.yaml.example")" "${config_dir}/postgresql.yaml.example"
 

@@ -41,5 +41,5 @@
 - 本轮最关键的决策是没有重复造一套 `smoke-local.*` 包装脚本，而是直接把既有 smoke 的目标地址能力接入统一 `retired-lifecycle-deploy` 入口。
 - 这样做的收益是：
   - operator 入口不再分裂
-  - 未来无论 `standalone.split-services.development` 是否迁移到不同端口或代理入口，都可以继续复用同一套 smoke 合同
+  - 未来无论 `standalone.development` 是否迁移到不同端口或代理入口，都可以继续复用同一套 smoke 合同
   - `CP10-3` 后续工作可以围绕现有标准入口继续加证据，而不是再治理一轮命令面漂移

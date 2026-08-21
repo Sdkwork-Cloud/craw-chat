@@ -14,40 +14,40 @@
 统一托管启动命令：
 
 ```text
-sdkwork-im-server --config <config-root>/chat.toml
+sdkwork-im-server --config <config-root>/config.toml
 ```
 
 ## 标准路径
 
 Linux：
 
-- Install root: `/opt/sdkwork/chat`
-- Config root: `/etc/sdkwork/chat`
-- Config file: `/etc/sdkwork/chat/chat.toml`
-- Env file: `/etc/sdkwork/chat/server.env`
-- Data root: `/var/lib/sdkwork/chat`
-- Log root: `/var/log/sdkwork/chat`
-- Run root: `/run/sdkwork/chat`
+- Install root: `/opt/sdkwork/im`
+- Config root: `/etc/sdkwork/im`
+- Config file: `/etc/sdkwork/im/config.toml`
+- Env file: `/etc/sdkwork/im/server.env`
+- Data root: `/var/lib/sdkwork/im`
+- Log root: `/var/log/sdkwork/im`
+- Run root: `/run/sdkwork/im`
 
 Windows Service：
 
-- Install root: `%ProgramFiles%/sdkwork/chat`
-- Config root: `%ProgramData%/sdkwork/chat`
-- Config file: `%ProgramData%/sdkwork/chat/chat.toml`
-- Env file: `%ProgramData%/sdkwork/chat/server.env`
-- Data root: `%ProgramData%/sdkwork/chat/Data`
-- Log root: `%ProgramData%/sdkwork/chat/Logs`
-- Run root: `%ProgramData%/sdkwork/chat/Run`
+- Install root: `%ProgramFiles%/sdkwork/im`
+- Config root: `%ProgramData%/sdkwork/im`
+- Config file: `%ProgramData%/sdkwork/im/config.toml`
+- Env file: `%ProgramData%/sdkwork/im/server.env`
+- Data root: `%ProgramData%/sdkwork/im/Data`
+- Log root: `%ProgramData%/sdkwork/im/Logs`
+- Run root: `%ProgramData%/sdkwork/im/Run`
 
 macOS service：
 
-- Install root: `/usr/lib/sdkwork/chat`
-- Config root: `/Library/Application Support/sdkwork/chat`
-- Config file: `/Library/Application Support/sdkwork/chat/chat.toml`
-- Env file: `/Library/Application Support/sdkwork/chat/server.env`
-- Data root: `/Library/Application Support/sdkwork/chat/Data`
-- Log root: `/Library/Logs/sdkwork/chat`
-- Run root: `/Library/Application Support/sdkwork/chat/Run`
+- Install root: `/usr/lib/sdkwork/im`
+- Config root: `/Library/Application Support/sdkwork/im`
+- Config file: `/Library/Application Support/sdkwork/im/config.toml`
+- Env file: `/Library/Application Support/sdkwork/im/server.env`
+- Data root: `/Library/Application Support/sdkwork/im/Data`
+- Log root: `/Library/Logs/sdkwork/im`
+- Run root: `/Library/Application Support/sdkwork/im/Run`
 
 ## Service templates
 
@@ -61,7 +61,7 @@ macOS service：
 
 ## Runtime contract
 
-- Foreground start、systemd、launchd、Windows Service 必须共享同一 `chat.toml` 配置源。
+- Foreground start、systemd、launchd、Windows Service 必须共享同一 `config.toml` 配置源。
 - `SDKWORK_IM_CONFIG_FILE` 可覆盖配置路径。
 - `SDKWORK_IM_LOG_DIR` 必须指向平台 log root。
 - Server deployments default to PostgreSQL and Redis。

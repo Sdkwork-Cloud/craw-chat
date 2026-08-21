@@ -4,14 +4,14 @@
 
 - 上一轮已经冻结了 `artifactRoot`，明确了真实归档证据应落入 bundle 内哪个根目录。
 - 但如果每个 slot 没有稳定的默认相对路径，后续 `artifactPath` 仍可能在不同执行人、不同 bundle 之间继续漂移。
-- 当前环境依然没有真实 `standalone.split-services.development` 发布后执行窗口，因此本轮继续不伪造真实文件，而是把默认命名规则先冻结成 contract。
+- 当前环境依然没有真实 `standalone.development` 发布后执行窗口，因此本轮继续不伪造真实文件，而是把默认命名规则先冻结成 contract。
 
 ## 2. 实际落地
 
 ### 2.1 每个 evidence slot 已新增 `suggestedRelativePath`
 
 - 更新：`artifacts/releases/schemas/post-release-evidence-index.schema.json`
-- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.split-services.development-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.development-post-release-evidence-index.json`
 - 当前每个 slot 都已固定默认命名规则，例如：
   - `retired-lifecycle-deploy/retired-lifecycle-deploy.ps1.log`
   - `retired-lifecycle-status/retired-lifecycle-status.ps1.txt`
@@ -22,7 +22,7 @@
 
 ### 2.2 artifact root 占位文档已说明默认命名规则
 
-- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.split-services.development/README.md`
+- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.development/README.md`
 - 当前已明确：
   - `artifactPath` 如无特殊原因，应优先取 `artifactRoot + "/" + suggestedRelativePath`
   - 当前命名规则仍处于模板态，用于冻结未来真实归档路径，而不是声称这些文件已经存在
@@ -49,7 +49,7 @@
 
 - release bundle evidence contract 现在已经从“有 artifact root”继续推进到“每个 slot 有默认命名规则”。
 - 当前仍然没有伪造任何真实 `artifactPath` 文件；本轮只是让未来真实归档时不再各自发明文件名。
-- 这样后续如果拿到真实 `standalone.split-services.development` 发布后窗口，operator 可以直接按 `suggestedRelativePath` 回填，而不需要重新决定目录与命名策略。
+- 这样后续如果拿到真实 `standalone.development` 发布后窗口，operator 可以直接按 `suggestedRelativePath` 回填，而不需要重新决定目录与命名策略。
 - 下一轮仍可继续推进：
   - 在真实窗口把 `artifactPath` 回填到这些默认相对路径
   - 决定是否补 `sizeBytes`

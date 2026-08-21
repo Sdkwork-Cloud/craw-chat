@@ -8,7 +8,7 @@
 统一启动入口：
 
 ```text
-sdkwork-im-server --config <config-root>/chat.toml
+sdkwork-im-server --config <config-root>/config.toml
 ```
 
 ## 命令面
@@ -60,15 +60,15 @@ bash bin/start-server.sh --instance default --release
 
 Linux archive：
 
-- Install root: `/opt/sdkwork/chat`
-- Config root: `/etc/sdkwork/chat`
-- Config file: `/etc/sdkwork/chat/chat.toml`
-- Env file: `/etc/sdkwork/chat/server.env`
-- PostgreSQL helper config: `/etc/sdkwork/chat/postgresql.yaml`
+- Install root: `/opt/sdkwork/im`
+- Config root: `/etc/sdkwork/im`
+- Config file: `/etc/sdkwork/im/config.toml`
+- Env file: `/etc/sdkwork/im/server.env`
+- PostgreSQL helper config: `/etc/sdkwork/im/postgresql.yaml`
 - PostgreSQL password file: `/etc/sdkwork/database/database.secret`
-- Data root: `/var/lib/sdkwork/chat`
-- Log root: `/var/log/sdkwork/chat`
-- Run root: `/run/sdkwork/chat`
+- Data root: `/var/lib/sdkwork/im`
+- Log root: `/var/log/sdkwork/im`
+- Run root: `/run/sdkwork/im`
 
 macOS service 与 Windows Service 路径矩阵见 [server版本service托管标准.md](./server版本service托管标准.md)。
 

@@ -1,4 +1,4 @@
-# Wave D self-hosted.split-services.development artifact file list
+# Wave D standalone.development artifact file list
 # state: template_only_pending_collection
 # path owner: artifactFileListPath
 # entries below follow suggestedRelativePath

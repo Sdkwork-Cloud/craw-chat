@@ -95,7 +95,7 @@
   - 对应 step 回写：`docs/step/continuous-optimization-chat-cli-cmd-help-pass-through-contract-2026-04-09.md`
   - 对应架构回写：`docs/架构/09AV-chat-cli-cmd-help-pass-through-contract-implementation-plan-2026-04-09.md`
   - 对应架构设计：`docs/架构/150AV-chat-cli-cmd-help-pass-through-contract-design-2026-04-09.md`
-  - 默认预发布 profile：`standalone.split-services.development`
+  - 默认预发布 profile：`standalone.development`
   - 目标容量环境：`capacity-dedicated`
   - 对应部署文档：`docs/部署/性能与灾备演练场景.md`
   - 对应 gate 模板：`tools/perf/step-11-pre-release-tier-gate.json`、`tools/perf/step-11-capacity-tier-gate.json`
@@ -136,7 +136,7 @@
   - `requiredReports = capacity_report / recovery_report`
   - `requiredOutputs` 以 `scenarioFamily -> artifactKind -> requiredFields` tuple 冻结最小输出契约，代表项包括 `connection -> metrics_json -> runId / connectionCount / successCount`、`restore-recovery -> recovery_json -> runId / restoreRtoSeconds / dataLossRpoEvents / previewDiffAccuracy`
   - `operatorDocPath = docs/部署/性能与灾备演练场景.md`，`scenarioCatalogPath = tools/perf/step-11-scenario-catalog.json`
-  - `profile = standalone.split-services.development / capacity-dedicated`
+  - `profile = standalone.development / capacity-dedicated`
   - `reviewBackwrite = docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md / docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md / docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md / docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md`
   - `scenarioFamily` 与 `artifactKind` 的对应关系包括 `connection -> metrics_json / capacity_json`、`failover -> drill_json / recovery_json`、`restore-recovery -> drill_json / recovery_json`
   - `scenarioFamily` 与 `requiredFields / requiredSections` 的对应关系包括 `connection -> runId / connectP95Ms`、`failover -> runId / takeoverDurationMs`、`restore-recovery -> runId / restoreRtoSeconds / previewDiffAccuracy`
@@ -243,7 +243,7 @@
   - verification anchored in `test_shell_lifecycle_scripts_use_args_based_process_identity_for_portability`
 - [continuous-optimization-runtime-lifecycle-profile-selection-2026-04-09](./continuous-optimization-runtime-lifecycle-profile-selection-2026-04-09.md)
   - `Step 10`
-  - close the lifecycle/runtime-ops split where `standalone.split-services.development` worked in status/runtime scripts but not in init/install/start/stop/restart
+  - close the lifecycle/runtime-ops split where `standalone.development` worked in status/runtime scripts but not in init/install/start/stop/restart
   - verification anchored in `test_init_config_local_ps1_uses_local_default_profile_when_requested` and `test_restart_local_ps1_forwards_profile_name_to_stop_and_start_scripts`
 - [continuous-optimization-lifecycle-profile-doc-contract-alignment-2026-04-09](./continuous-optimization-lifecycle-profile-doc-contract-alignment-2026-04-09.md)
   - `Step 10`

@@ -7,22 +7,22 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const root = path.join(repoRoot, 'artifacts', 'perf', 'step-11');
 
 const replacements = [
-  ['"profile": "local-default"', '"profile": "standalone.split-services.development"'],
-  ['"sourceProfile": "local-minimal"', '"sourceProfile": "standalone.split-services.development"'],
+  ['"profile": "local-default"', '"profile": "standalone.development"'],
+  ['"sourceProfile": "local-minimal"', '"sourceProfile": "standalone.development"'],
   [
     'CI Smoke Tier / local-minimal output',
-    'CI Smoke Tier / standalone.split-services.development output',
+    'CI Smoke Tier / standalone.development output',
   ],
   [
     'CI Smoke Tier / local-minimal evidence',
-    'CI Smoke Tier / standalone.split-services.development evidence',
+    'CI Smoke Tier / standalone.development evidence',
   ],
-  ['local-default / capacity-dedicated', 'standalone.split-services.development / capacity-dedicated'],
-  ['local-minimal evidence backfill', 'standalone.split-services.development evidence backfill'],
-  ['for local-minimal evidence', 'for standalone.split-services.development evidence'],
+  ['local-default / capacity-dedicated', 'standalone.development / capacity-dedicated'],
+  ['local-minimal evidence backfill', 'standalone.development evidence backfill'],
+  ['for local-minimal evidence', 'for standalone.development evidence'],
   [
     'profile = local-default / capacity-dedicated',
-    'profile = standalone.split-services.development / capacity-dedicated',
+    'profile = standalone.development / capacity-dedicated',
   ],
 ];
 

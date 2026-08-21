@@ -15,12 +15,12 @@ websocket_base_url = "wss://im.sdkwork.com"
 docs_base_url = "https://im.sdkwork.com/docs"
 
 [paths]
-config_directory = "/etc/sdkwork/chat"
-config_file = "/etc/sdkwork/chat/chat.toml"
-data_directory = "/var/lib/sdkwork/chat"
-log_directory = "/var/log/sdkwork/chat"
-cache_directory = "/var/cache/sdkwork/chat"
-runtime_directory = "/run/sdkwork/chat"
+config_directory = "/etc/sdkwork/im"
+config_file = "/etc/sdkwork/im/config.toml"
+data_directory = "/var/lib/sdkwork/im"
+log_directory = "/var/log/sdkwork/im"
+cache_directory = "/var/cache/sdkwork/im"
+runtime_directory = "/run/sdkwork/im"
 
 [database]
 engine = "postgresql"
@@ -38,7 +38,7 @@ enabled = true
 host = "redis.example.com"
 port = 6379
 database = 0
-password_file = "/etc/sdkwork/chat/redis.secret"
+password_file = "/etc/sdkwork/im/redis.secret"
 key_prefix = "chat"
 tls = false
 max_connections = 16

@@ -5,7 +5,7 @@
 
 ## Goal
 
-- 让 `init/install/start/stop/restart` 与现有 runtime ops 一样，稳定支持 `standalone.split-services.development / standalone.split-services.development` profile。
+- 让 `init/install/start/stop/restart` 与现有 runtime ops 一样，稳定支持 `standalone.development / standalone.development` profile。
 
 ## Scope
 
@@ -14,9 +14,9 @@
 
 ## Implementation
 
-- 先写失败测试，冻结 `standalone.split-services.development` config 入口与 restart 参数透传合同。
+- 先写失败测试，冻结 `standalone.development` config 入口与 restart 参数透传合同。
 - 复用 `_runtime-profile-common.*` 解析 profile config 链与 runtime-dir。
-- 对 `standalone.split-services.development` 保持“独立 config 文件 + 共享 standalone.split-services.development runtime-dir”的当前兼容策略。
+- 对 `standalone.development` 保持“独立 config 文件 + 共享 standalone.development runtime-dir”的当前兼容策略。
 - 复验 `deployment_profile_test`、格式检查与 `sdkwork-im-server` 包级离线测试。
 
 ## Expected State
@@ -27,6 +27,6 @@
 
 ## Boundary
 
-- 这轮不引入 `standalone.split-services.development` 独立拓扑。
+- 这轮不引入 `standalone.development` 独立拓扑。
 - 原生 Bash 真实运行态证明仍需在有可用 Bash 的环境补齐。
 

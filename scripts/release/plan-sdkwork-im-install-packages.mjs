@@ -14,32 +14,32 @@ const PRODUCT_NAME = 'chat';
 const PACKAGE_NAME = 'sdkwork-chat';
 const RUNTIME_DISPLAY_NAME = 'Sdkwork IM';
 const SERVER_BINARY_BASENAME = 'sdkwork-api-im-standalone-gateway';
-const LINUX_INSTALL_ROOT = '/opt/sdkwork/chat';
-const MACOS_INSTALL_ROOT = '/usr/lib/sdkwork/chat';
+const LINUX_INSTALL_ROOT = '/opt/sdkwork/im';
+const MACOS_INSTALL_ROOT = '/usr/lib/sdkwork/im';
 const POSIX_INSTALL_ROOT = LINUX_INSTALL_ROOT;
-const WINDOWS_INSTALL_ROOT = '%ProgramFiles%/sdkwork/chat';
+const WINDOWS_INSTALL_ROOT = '%ProgramFiles%/sdkwork/im';
 const HEALTH_CHECKS = Object.freeze(['/healthz', '/readyz']);
 const SERVER_RUNTIME_PATHS = Object.freeze({
   linux: Object.freeze({
     installRoot: LINUX_INSTALL_ROOT,
-    configDir: '/etc/sdkwork/chat',
-    dataDir: '/var/lib/sdkwork/chat',
-    logDir: '/var/log/sdkwork/chat',
-    runDir: '/run/sdkwork/chat',
+    configDir: '/etc/sdkwork/im',
+    dataDir: '/var/lib/sdkwork/im',
+    logDir: '/var/log/sdkwork/im',
+    runDir: '/run/sdkwork/im',
   }),
   macos: Object.freeze({
     installRoot: MACOS_INSTALL_ROOT,
-    configDir: '/Library/Application Support/sdkwork/chat',
-    dataDir: '/Library/Application Support/sdkwork/chat/Data',
-    logDir: '/Library/Logs/sdkwork/chat',
-    runDir: '/Library/Application Support/sdkwork/chat/Run',
+    configDir: '/Library/Application Support/sdkwork/im',
+    dataDir: '/Library/Application Support/sdkwork/im/Data',
+    logDir: '/Library/Logs/sdkwork/im',
+    runDir: '/Library/Application Support/sdkwork/im/Run',
   }),
   windows: Object.freeze({
     installRoot: WINDOWS_INSTALL_ROOT,
-    configDir: '%ProgramData%/sdkwork/chat',
-    dataDir: '%ProgramData%/sdkwork/chat/Data',
-    logDir: '%ProgramData%/sdkwork/chat/Logs',
-    runDir: '%ProgramData%/sdkwork/chat/Run',
+    configDir: '%ProgramData%/sdkwork/im',
+    dataDir: '%ProgramData%/sdkwork/im/Data',
+    logDir: '%ProgramData%/sdkwork/im/Logs',
+    runDir: '%ProgramData%/sdkwork/im/Run',
   }),
 });
 
@@ -277,8 +277,8 @@ function buildServerArchiveArtifacts(binaryName) {
     },
     {
       kind: 'server-config-template',
-      path: 'config/chat.toml.example',
-      source: 'deployments/templates/chat.toml.example',
+      path: 'config/config.toml.example',
+      source: 'deployments/templates/config.toml.example',
       required: true,
     },
     {
@@ -398,25 +398,25 @@ function runtimeConfigLocationsFor(platform, runtimeTarget) {
   if (runtimeTarget === 'desktop') {
     if (platform === 'windows') {
       return {
-        configFile: '%USERPROFILE%/.sdkwork/chat/config/chat.toml',
+        configFile: '%USERPROFILE%/.sdkwork/chat/config/config.toml',
         dataDirectory: '%USERPROFILE%/.sdkwork/chat/data',
       };
     }
     if (platform === 'macos') {
       return {
-        configFile: '~/.sdkwork/chat/config/chat.toml',
-        dataDirectory: '~/.sdkwork/chat/data',
+        configFile: '~/.sdkwork/im/config/config.toml',
+        dataDirectory: '~/.sdkwork/im/data',
       };
     }
     return {
-      configFile: '~/.sdkwork/chat/config/chat.toml',
-      dataDirectory: '~/.sdkwork/chat/data',
+      configFile: '~/.sdkwork/im/config/config.toml',
+      dataDirectory: '~/.sdkwork/im/data',
     };
   }
 
   const paths = serverRuntimePathsFor(platform);
   return {
-    configFile: `${paths.configDir}/chat.toml`,
+    configFile: `${paths.configDir}/config.toml`,
     dataDirectory: paths.dataDir,
   };
 }

@@ -7,7 +7,7 @@
   "artifactKind": "capacity_json",
   "runId": "step11-capacity-local-stream-2026-06-17-doc-capture",
   "collectedAt": "2026-06-17",
-  "sourceProfile": "self-hosted.split-services.development",
+  "sourceProfile": "standalone.development",
   "sourceTier": "CI Smoke Tier",
   "sourceBaselinePath": "tools/perf/step-11-cp11-2-local-baseline.json",
   "sourceTestPath": "services/session-gateway/tests/postgres_realtime_live_runtime_test.rs",

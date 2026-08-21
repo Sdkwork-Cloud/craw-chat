@@ -1,6 +1,6 @@
 param(
     [string]$InstanceName = "default",
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")),
     [switch]$Help
 )
 
@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 function Get-ServerConfigDirForInstance {
     param([string]$Name)
 
-    $root = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+    $root = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")
     if ($Name -eq "default") {
         return $root
     }

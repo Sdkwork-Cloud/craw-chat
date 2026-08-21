@@ -1,6 +1,6 @@
 param(
     [string]$InstanceName = "default",
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")),
     [string]$ReleaseGatePath = "",
     [ValidateSet("text", "json")]
     [string]$OutputFormat = "text",
@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 function Get-ServerConfigDirForInstance {
     param([string]$Name)
 
-    $root = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+    $root = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")
     if ($Name -eq "default") {
         return $root
     }
@@ -110,7 +110,7 @@ $storageMissing = New-Object System.Collections.Generic.List[string]
 
 $serverConfigPath = Get-FirstExistingPath @(
     (Join-Path $ConfigDir "server.yaml"),
-    (Join-Path $ConfigDir "chat.toml")
+    (Join-Path $ConfigDir "config.toml")
 )
 $postgresqlPath = Get-FirstExistingPath @(
     (Join-Path $ConfigDir "postgresql.yaml"),

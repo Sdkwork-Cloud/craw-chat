@@ -14,7 +14,7 @@ Social mutations are coordinated through `SocialRuntime` and persisted to the pr
 | `projection-service` | Contact read model for `GET /im/v3/api/chat/contacts` |
 | `social-postgres` normalized store | Durable tables (`im_friend_requests`, `im_friendships`, `im_user_blocks`, contact tags/preferences/recommendations) written atomically with the journal |
 | `im_contact_tags` / `im_contact_preferences` / `im_contact_recommendations` | Durable PostgreSQL contact UI metadata (tags, star, remark, recommendations) |
-| `conversation-runtime` | Direct chat conversation bind on friend accept (unified-process only) |
+| `conversation-runtime` | Direct chat conversation bind on friend accept (standalone gateway process only) |
 | `session-gateway` realtime plane | Push social domain events to connected clients |
 
 Startup does not replay the journal into a second Social authority. Normalized PostgreSQL stores are queried by service methods; the co-located Conversation cache is disposable and refreshed after committed Social writes.
@@ -23,7 +23,7 @@ Bootstrap entrypoint: `social_service::build_social_runtime_from_env()`.
 
 Unified-process wiring is owned by the standalone gateway's `embedded_plane_wiring::wire_embedded_realtime_plane()`, which delegates Social fanout registration to `sdkwork_api_im_assembly::wire_social_runtime_embedded_plane()` and retains the RTC, Conversation, and Social relay handles for the process lifetime.
 
-Direct-message access in unified-process uses `SocialRuntime::ensure_direct_message_allowed()` (refreshes journal authority + block check); gateway assembly must not call `pub(crate)` runtime internals.
+Direct-message access in the standalone gateway process uses `SocialRuntime::ensure_direct_message_allowed()` (refreshes journal authority + block check); gateway assembly must not call `pub(crate)` runtime internals.
 
 ## Response Envelope
 
@@ -127,7 +127,7 @@ When social authority is durable (Postgres journal or file journal), friend acce
 - `DELETE /im/v3/api/social/user_blocks/{blockId}` — event-sourced release (`user_block.released`); 仅 blocker 可解封
 - Supplemental Postgres DELETE unblock route removed (was bypassing journal authority)
 - **Friendship cascade**: blocking with scope `all` or `friendship` atomically emits `friendship.removed` when an active friendship exists for the pair (same journal batch as `user_block.blocked`), archives active direct chats, and keeps contact projection consistent without stale active friendships while blocked
-- **Message enforcement**: unified-process 优先 embedded `SocialRuntimeDirectMessageAccessGate`；split-deploy conversation 进程使用 `PostgresDirectMessageAccessGate`（查询 `im_user_blocks`）在 `post_message` Direct 场景拦截发送
+- **Message enforcement**: standalone gateway 优先 embedded `SocialRuntimeDirectMessageAccessGate`；split-deploy conversation 进程使用 `PostgresDirectMessageAccessGate`（查询 `im_user_blocks`）在 `post_message` Direct 场景拦截发送
 
 ## Message Post Atomic Write (Conversation)
 
@@ -181,7 +181,7 @@ Production fail-closed: set `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` when split
 - New submissions carry `expiresAt` on `friend_request.submitted` (default **7 days**, env `SDKWORK_IM_FRIEND_REQUEST_TTL_SECONDS`).
 - Background scheduler (`SDKWORK_IM_FRIEND_REQUEST_EXPIRATION_SCHEDULER_ENABLED`, interval `SDKWORK_IM_FRIEND_REQUEST_EXPIRATION_INTERVAL_SECONDS`) emits `friend_request.expired` commits for stale pending requests.
 - Accept handler rejects expired pending requests (`friend_request_expired`) even if scheduler has not yet run.
-- Wired in unified-process bootstrap (`ApiAssembly`) alongside shared-channel stale reclaim.
+- Wired in standalone gateway bootstrap (`ApiAssembly`) alongside shared-channel stale reclaim.
 - Pending badge API: `GET /im/v3/api/social/friend_requests/pending/count` returns `{ count }` in `data.item`.
 - User search `relationshipState`: `self`, `active`, `pending_incoming`, `pending_outgoing`, `none` (blocked users filtered from results).
 - OpenAPI block/unblock use deterministic `blockId` / `eventId` seeds; duplicate block requests return the active record; release is idempotent when already released.

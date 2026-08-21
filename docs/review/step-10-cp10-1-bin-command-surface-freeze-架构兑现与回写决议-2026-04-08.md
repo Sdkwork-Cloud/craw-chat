@@ -8,7 +8,7 @@
 
 ## 本轮已兑现能力力力力力
 - `09`
-  - `Step 10 / CP10-1` 现在已经把 `standalone.split-services.development` 命令面冻结为统一入口：
+  - `Step 10 / CP10-1` 现在已经把 `standalone.development` 命令面冻结为统一入口：
     - `install`
     - `init`
     - `start`

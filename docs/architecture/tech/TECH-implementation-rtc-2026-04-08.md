@@ -23,7 +23,7 @@
 4. `verification`
    - runtime 级测试验证 tenant override / deployment_profile
    - standalone HTTP 验证标准播放面
-   - standalone.split-services.development assembled HTTP 验证镜像路由
+   - standalone.development assembled HTTP 验证镜像路由
 
 ## 已完成状态
 

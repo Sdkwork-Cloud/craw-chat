@@ -19,7 +19,7 @@
 - 当前增量已经把这个错位修正为可验证、可重复、可文档化的 operator contract。
 
 ## 正向结果
-- Docker `standalone.split-services.development` profile 现在具备稳定 public bearer dev secret，不再要求 operator 自行推断 secret 来源。
+- Docker `standalone.development` profile 现在具备稳定 public bearer dev secret，不再要求 operator 自行推断 secret 来源。
 - PowerShell / Bash smoke 脚本共享同一条 secret 解析顺序：
   - 显式 bearer
   - 显式 secret

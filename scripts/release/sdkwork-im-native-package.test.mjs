@@ -76,13 +76,13 @@ test('deb builder emits a dpkg-parseable archive with canonical paths', () => {
 
   const entries = [
     { relativePath: 'bin/sdkwork-api-im-standalone-gateway', data: Buffer.from('ELF'), mode: 0o755 },
-    { relativePath: 'config/chat.toml.example', data: Buffer.from('template'), mode: 0o644 },
+    { relativePath: 'config/config.toml.example', data: Buffer.from('template'), mode: 0o644 },
     { relativePath: 'web/sdkwork-im-pc/dist/index.html', data: Buffer.from('<html/>'), mode: 0o644 },
     { relativePath: 'modules/sdkwork-iam/database/database.manifest.json', data: Buffer.from('{}'), mode: 0o644 },
     { relativePath: 'sdkwork.app.config.json', data: Buffer.from('{}'), mode: 0o644 },
     { relativePath: 'INSTALL.md', data: Buffer.from('# guide'), mode: 0o644 },
     { relativePath: 'install-manifest.json', data: Buffer.from('{}'), mode: 0o644 },
-    { relativePath: 'service/linux/sdkwork-chat.service', data: Buffer.from(createSystemdUnit()), mode: 0o644 },
+    { relativePath: 'service/linux/sdkwork-im.service', data: Buffer.from(createSystemdUnit()), mode: 0o644 },
   ];
   const debBytes = createDebianPackage({ package: packageItem }, entries);
 
@@ -101,20 +101,20 @@ test('deb builder emits a dpkg-parseable archive with canonical paths', () => {
 
   const dataEntries = readTarEntries(gunzipSync(members.get('data.tar.gz').data));
   for (const required of [
-    './usr/lib/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway',
-    './etc/sdkwork/chat/chat.toml.example',
-    './usr/share/sdkwork/chat/web/sdkwork-im-pc/dist/index.html',
-    './var/lib/sdkwork/chat/modules/sdkwork-iam/database/database.manifest.json',
-    './usr/lib/sdkwork/chat/sdkwork.app.config.json',
-    './usr/share/doc/sdkwork/chat/INSTALL.md',
-    './usr/share/sdkwork/chat/install-manifest.json',
-    './usr/lib/systemd/system/sdkwork-chat.service',
+    './usr/lib/sdkwork/im/bin/sdkwork-api-im-standalone-gateway',
+    './etc/sdkwork/im/config.toml.example',
+    './usr/share/sdkwork/im/web/sdkwork-im-pc/dist/index.html',
+    './var/lib/sdkwork/im/modules/sdkwork-iam/database/database.manifest.json',
+    './usr/lib/sdkwork/im/sdkwork.app.config.json',
+    './usr/share/doc/sdkwork/im/INSTALL.md',
+    './usr/share/sdkwork/im/install-manifest.json',
+    './usr/lib/systemd/system/sdkwork-im.service',
   ]) {
     assert.ok(dataEntries.has(required), `data.tar.gz must include ${required}`);
   }
-  assert.equal(dataEntries.get('./usr/lib/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway').mode, 0o755);
-  assert.equal(dataEntries.get('./etc/sdkwork/chat/chat.toml.example').mode, 0o640);
-  assert.equal(dataEntries.get('./var/lib/sdkwork/chat/modules/sdkwork-iam/database/database.manifest.json').mode, 0o644);
+  assert.equal(dataEntries.get('./usr/lib/sdkwork/im/bin/sdkwork-api-im-standalone-gateway').mode, 0o755);
+  assert.equal(dataEntries.get('./etc/sdkwork/im/config.toml.example').mode, 0o640);
+  assert.equal(dataEntries.get('./var/lib/sdkwork/im/modules/sdkwork-iam/database/database.manifest.json').mode, 0o644);
 });
 
 test('byte-level deb validation gate accepts the built deb and rejects garbage', () => {
@@ -122,7 +122,7 @@ test('byte-level deb validation gate accepts the built deb and rejects garbage',
   const packageItem = plan.packages.find((item) => item.id === 'linux-ubuntu-x64-standalone-server-deb');
   const entries = [
     { relativePath: 'bin/sdkwork-api-im-standalone-gateway', data: Buffer.from('ELF'), mode: 0o755 },
-    { relativePath: 'config/chat.toml.example', data: Buffer.from('t'), mode: 0o644 },
+    { relativePath: 'config/config.toml.example', data: Buffer.from('t'), mode: 0o644 },
     { relativePath: 'config/server.env.example', data: Buffer.from('t'), mode: 0o644 },
     { relativePath: 'config/postgresql.yaml.example', data: Buffer.from('t'), mode: 0o644 },
     { relativePath: 'web/sdkwork-im-pc/dist/index.html', data: Buffer.from('<html/>'), mode: 0o644 },
@@ -137,7 +137,7 @@ test('byte-level deb validation gate accepts the built deb and rejects garbage',
       })),
       mode: 0o644,
     },
-    { relativePath: 'service/linux/sdkwork-chat.service', data: Buffer.from(createSystemdUnit()), mode: 0o644 },
+    { relativePath: 'service/linux/sdkwork-im.service', data: Buffer.from(createSystemdUnit()), mode: 0o644 },
     { relativePath: 'database/database.manifest.json', data: Buffer.from('{}'), mode: 0o644 },
   ];
   const debBytes = createDebianPackage({ package: packageItem }, entries);
@@ -156,12 +156,12 @@ test('native install layouts carry the canonical spec paths per platform', () =>
     assert.equal(layout.packageId, item.id);
     assert.equal(layout.schemaVersion, '2026-08-08.sdkwork-im.native-install-layout.v1');
     if (item.platform === 'linux') {
-      assert.equal(layout.files.binary, '/usr/lib/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway');
-      assert.equal(layout.service.unitPath, '/usr/lib/systemd/system/sdkwork-chat.service');
+      assert.equal(layout.files.binary, '/usr/lib/sdkwork/im/bin/sdkwork-api-im-standalone-gateway');
+      assert.equal(layout.service.unitPath, '/usr/lib/systemd/system/sdkwork-im.service');
       assert.equal(layout.files.passwordFile, '/etc/sdkwork/database/database.secret');
-      assert.equal(layout.files.modules, '/var/lib/sdkwork/chat/modules');
+      assert.equal(layout.files.modules, '/var/lib/sdkwork/im/modules');
     } else if (item.platform === 'windows') {
-      assert.equal(layout.service.name, 'sdkwork-chat');
+      assert.equal(layout.service.name, 'sdkwork-im');
       assert.match(layout.installRoot, /%ProgramFiles%[\\/]sdkwork[\\/]chat/u);
       assert.match(layout.files.dataDirectory, /%ProgramData%[\\/]sdkwork[\\/]chat[\\/]Data/u);
     } else {

@@ -29,7 +29,7 @@
 ### 1. Docker/public smoke 已具备真实认证真实
 - `(removed compose file)`
   - 新增 `sdkwork_im_PUBLIC_BEARER_HS256_SECRET: local-minimal-public-dev-secret`
-  - Docker `standalone.split-services.development` profile 现在自带可重复执行的 public bearer dev secret
+  - Docker `standalone.development` profile 现在自带可重复执行的 public bearer dev secret
 
 ### 2. smoke 脚本已从 unsigned demo bearer 切换HS256 合同
 - `tools/smoke/local_stack_smoke.ps1`

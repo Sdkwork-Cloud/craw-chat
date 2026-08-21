@@ -35,7 +35,7 @@
 - ✅ P3 social fail-closed：`SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` 时 social commit 在无 embedded fanout 且无 outbox 配置下拒绝持久化（与 conversation `post_message` 一致）
 - ✅ P1 测试/嵌入式稳定性：projection embedded bridge 非 panic；单测 auth 中间件注入；personalization key 归一化 org id 断言对齐
 - ✅ P1 社交：好友请求 per-user 日限额（`SDKWORK_IM_FRIEND_REQUEST_DAILY_LIMIT`，默认 50）
-- ✅ P1 私信门禁：split-deploy 通过 `PostgresDirectMessageAccessGate`（`im_user_blocks`）；unified-process 优先 embedded `SocialRuntime` gate
+- ✅ P1 私信门禁：split-deploy 通过 `PostgresDirectMessageAccessGate`（`im_user_blocks`）；standalone gateway 优先 embedded `SocialRuntime` gate
 
 ---
 

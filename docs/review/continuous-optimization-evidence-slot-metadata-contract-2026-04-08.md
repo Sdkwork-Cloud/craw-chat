@@ -2,7 +2,7 @@
 
 ## 1. 本轮背景
 
-- 上一轮已经把 `standalone.split-services.development` 的 release bundle evidence index 冻结成 machine-readable JSON 与 schema contract。
+- 上一轮已经把 `standalone.development` 的 release bundle evidence index 冻结成 machine-readable JSON 与 schema contract。
 - 但 slot 级别仍然只有：
   - `id`
   - `kind`
@@ -13,7 +13,7 @@
   - 证据文件放在哪里
   - 何时采集
   - 当前归档物的校验和是什么
-- 当前环境依然没有真实 `standalone.split-services.development` 发布后执行窗口，因此本轮继续不伪造采集结果，只冻结 slot metadata contract。
+- 当前环境依然没有真实 `standalone.development` 发布后执行窗口，因此本轮继续不伪造采集结果，只冻结 slot metadata contract。
 
 ## 2. 实际落地
 
@@ -30,7 +30,7 @@
 
 ### 2.2 当前 evidence index 已显式保留模板态占位
 
-- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.split-services.development-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.development-post-release-evidence-index.json`
 - 当前每个 slot 都已显式携带：
   - `artifactPath: null`
   - `collectedAt: null`

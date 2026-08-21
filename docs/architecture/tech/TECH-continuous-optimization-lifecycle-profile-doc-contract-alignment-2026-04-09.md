@@ -5,12 +5,12 @@
 
 ## Context
 
-- lifecycle 脚本已支持 `standalone.split-services.development / standalone.split-services.development` profile。
-- `README.md` 与 `docs/部署/快速启动脚本.md` 仍主要展示旧的 `standalone.split-services.development` 示例。
+- lifecycle 脚本已支持 `standalone.development / standalone.development` profile。
+- `README.md` 与 `docs/部署/快速启动脚本.md` 仍主要展示旧的 `standalone.development` 示例。
 
 ## Confirmed Bug
 
-- operator 入口文档没有对称公开 `install/init/start/restart/stop` 的 `standalone.split-services.development` 用法。
+- operator 入口文档没有对称公开 `install/init/start/restart/stop` 的 `standalone.development` 用法。
 - 文档参数表也没有完整列出 lifecycle 全链的 `--profile` / `-ProfileName`。
 
 ## Root Cause
@@ -20,7 +20,7 @@
 
 ## Fix
 
-- 在 `README.md` 补 `install/init/start/status/restart/stop` 的 `standalone.split-services.development` 示例。
+- 在 `README.md` 补 `install/init/start/status/restart/stop` 的 `standalone.development` 示例。
 - 在 `docs/部署/快速启动脚本.md` 补 lifecycle 全链 profile 参数、三端示例、运行产物与兼容边界说明。
 - 新增回归测试 `test_quick_start_doc_surfaces_local_default_profile_examples_across_lifecycle_commands`。
 
@@ -43,7 +43,7 @@ cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ## Result
 
 - 顶层 README 与快速启动文档已对齐脚本真实能力。
-- `standalone.split-services.development` config 入口与当前共享 runtime-dir 的边界都已公开。
+- `standalone.development` config 入口与当前共享 runtime-dir 的边界都已公开。
 
 ## Boundary
 

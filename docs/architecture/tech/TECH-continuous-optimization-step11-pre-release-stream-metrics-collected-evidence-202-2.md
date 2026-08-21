@@ -32,5 +32,5 @@
 ## Boundary
 
 - This is the final truthful `Pre-Release Tier` artifact promoted from published CP11-2 local stream evidence.
-- It is not full gate sign-off because the evidence is still doc-captured from published CI Smoke Tier / standalone.split-services.development output.
+- It is not full gate sign-off because the evidence is still doc-captured from published CI Smoke Tier / standalone.development output.
 

@@ -1,6 +1,6 @@
 param(
     [string]$InstanceName = "default",
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")),
     [ValidateSet("verify-only", "bootstrap-schema", "create-db-and-schema")]
     [string]$Mode = "verify-only",
     [ValidateSet("text", "json")]
@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 function Get-ServerConfigDirForInstance {
     param([string]$Name)
 
-    $root = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+    $root = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")
     if ($Name -eq "default") {
         return $root
     }

@@ -174,7 +174,7 @@ RTC 相关能力拆成两层：
 
 ## 8. 存储与可靠性标准
 
-当前 unified-process（standalone gateway）实现：
+当前 standalone gateway（单进程）实现：
 
 - RTC 会话状态：内存 + Postgres 持久化（`im-calls-service`）
 - 生命周期与自定义信令：写入 `im_outbox_events`（`aggregate_type=rtc_session`），由 `sdkwork-api-im-assembly::rtc_outbox_relay` 轮询并推送到 embedded `RealtimeDeliveryRuntime`（user scope）

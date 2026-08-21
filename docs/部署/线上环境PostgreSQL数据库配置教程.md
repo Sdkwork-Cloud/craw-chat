@@ -18,25 +18,25 @@
 Linux server/service/container 使用：
 
 ```text
-/opt/sdkwork/chat                 # archive install root
-/etc/sdkwork/chat                 # config and secret root
-/var/lib/sdkwork/chat             # durable data
-/var/log/sdkwork/chat             # file logs
-/run/sdkwork/chat                 # runtime state
+/opt/sdkwork/im                 # archive install root
+/etc/sdkwork/im                 # config and secret root
+/var/lib/sdkwork/im             # durable data
+/var/log/sdkwork/im             # file logs
+/run/sdkwork/im                 # runtime state
 ```
 
 核心配置文件：
 
 ```text
-/etc/sdkwork/chat/
-  chat.toml
+/etc/sdkwork/im/
+  config.toml
   server.env
   postgresql.yaml
   database.secret
   redis.secret
 ```
 
-Windows Service 使用 `%ProgramFiles%/sdkwork/chat` 与 `%ProgramData%/sdkwork/chat`。macOS service 使用 `/usr/lib/sdkwork/chat`、`/Library/Application Support/sdkwork/chat` 和 `/Library/Logs/sdkwork/chat`。
+Windows Service 使用 `%ProgramFiles%/sdkwork/im` 与 `%ProgramData%/sdkwork/im`。macOS service 使用 `/usr/lib/sdkwork/im`、`/Library/Application Support/sdkwork/im` 和 `/Library/Logs/sdkwork/im`。
 
 ## 2. 创建工作区数据库与账号
 
@@ -62,9 +62,9 @@ ALTER ROLE sdkwork_ai_prod SET search_path TO sdkwork_ai_prod, public;
 
 生产运行账号不使用 PostgreSQL 超级用户。数据库所有者、migrator 和运行账号需要分离时，由部署平台按最小权限创建角色，但 database、schema 和 runtime username 的 workspace identity 不得改成应用或模块名。
 
-## 3. chat.toml
+## 3. config.toml
 
-`chat.toml` 是 server 运行时主配置入口：
+`config.toml` 是 server 运行时主配置入口：
 
 ```toml
 [runtime]
@@ -78,10 +78,10 @@ bind_address = "0.0.0.0:18079"
 trust_forwarded_headers = true
 
 [paths]
-config_directory = "/etc/sdkwork/chat"
-data_directory = "/var/lib/sdkwork/chat"
-log_directory = "/var/log/sdkwork/chat"
-runtime_directory = "/run/sdkwork/chat"
+config_directory = "/etc/sdkwork/im"
+data_directory = "/var/lib/sdkwork/im"
+log_directory = "/var/log/sdkwork/im"
+runtime_directory = "/run/sdkwork/im"
 
 [database]
 engine = "postgresql"
@@ -102,10 +102,10 @@ max_connections = 20
 ```env
 SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
 SDKWORK_IM_RUNTIME_TARGET=server
-SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
-SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat
-SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat
-SDKWORK_IM_RUN_DIR=/run/sdkwork/chat
+SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/im/config.toml
+SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/im
+SDKWORK_IM_LOG_DIR=/var/log/sdkwork/im
+SDKWORK_IM_RUN_DIR=/run/sdkwork/im
 
 SDKWORK_DATABASE_ENGINE=postgresql
 SDKWORK_DATABASE_HOST=postgres.internal.example.com

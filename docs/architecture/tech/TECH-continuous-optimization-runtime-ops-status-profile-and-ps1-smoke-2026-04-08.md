@@ -9,7 +9,7 @@
 - 当前仓库里：
   - `inspect-runtime-local.ps1`、`inspect-runtime-local.cmd` 已有 profile 行为回归；
   - `repair-runtime-local.sh` 已有 Bash profile 行为回归；
-  - `retired-lifecycle-status.*` 仍固定停留在 `standalone.split-services.development`；
+  - `retired-lifecycle-status.*` 仍固定停留在 `standalone.development`；
   - `repair/archive/prune/preview/restore` 的 PowerShell wrapper 仍缺少统一的最小 smoke 证明。
 
 ## 2. 实际落地
@@ -20,15 +20,15 @@
 - 更新：`bin/retired-lifecycle-status.sh`
 - 更新：`docs/部署/快速启动脚本.md`
 - 当前新增能力：
-  - `retired-lifecycle-status.ps1` 支持 `-ProfileName <standalone.split-services.development|standalone.split-services.development>` 与 `-RuntimeDir <path>`
-  - `retired-lifecycle-status.sh` 支持 `--profile <standalone.split-services.development|standalone.split-services.development>` 与 `--runtime-dir <path>`
+  - `retired-lifecycle-status.ps1` 支持 `-ProfileName <standalone.development|standalone.development>` 与 `-RuntimeDir <path>`
+  - `retired-lifecycle-status.sh` 支持 `--profile <standalone.development|standalone.development>` 与 `--runtime-dir <path>`
   - 状态输出会根据所选 profile 解析：
     - config 路径
     - bind 地址
     - healthz URL
     - stdout / stderr log 路径
     - 后续 runtime ops 命令建议
-  - 当选择 `standalone.split-services.development` 时，后续建议命令会显式保留同一 profile 参数，避免排障链路回退到默认 `standalone.split-services.development`
+  - 当选择 `standalone.development` 时，后续建议命令会显式保留同一 profile 参数，避免排障链路回退到默认 `standalone.development`
 
 ### 2.2 runtime ops PowerShell wrapper 最小 smoke 已冻结
 
@@ -43,7 +43,7 @@
   - `test_runtime_operation_ps1_wrappers_forward_profile_and_backup_arguments`
     - 真实执行 `repair/archive/prune/preview/restore` PowerShell wrapper
     - 通过 fake cargo 捕获并冻结：
-      - standalone.split-services.development runtime dir 解析
+      - standalone.development runtime dir 解析
       - `backup-dir`
       - `retention-days`
       - `legal-hold`
@@ -59,11 +59,11 @@
 
 ## 3. 当前判断
 
-- `retired-lifecycle-status` 不再是 runtime ops 里唯一停留在 `standalone.split-services.development` 固定视角的入口。
+- `retired-lifecycle-status` 不再是 runtime ops 里唯一停留在 `standalone.development` 固定视角的入口。
 - `repair/archive/prune/preview/restore` 的 PowerShell wrapper 现在已经从“仅 help/字符串合同”提升为“可执行 smoke 证据”。
 - 本轮是对 `runtime ops minimal smoke` backlog 的实质推进，不是文档粉饰。
 - 下一轮可继续推进：
-  - `standalone.split-services.development` 对称发布后验证样本
+  - `standalone.development` 对称发布后验证样本
   - 可用 Bash 环境上的真实 runtime ops shell 证据补全
 
 ## 4. fresh evidence

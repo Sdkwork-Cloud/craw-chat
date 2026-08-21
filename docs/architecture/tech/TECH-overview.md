@@ -7,7 +7,7 @@ Sdkwork IM is a multi-service Rust workspace, not a single binary with optional 
 documentation is easiest to understand through five architectural lenses:
 
 1. The workspace layout and contract crates
-2. Topology v2 connectivity planes (`application.public-ingress` + `platform.api-gateway`)
+2. Topology v5 connectivity planes (`application.public-ingress` + `platform.api-gateway`)
 3. The separate `control-plane-api`
 4. The unified `sdkwork-api-im-standalone-gateway` / `sdkwork-im-server` application ingress
 5. The runtime-directory persistence contract and shared storage baseline
@@ -20,7 +20,7 @@ documentation is easiest to understand through five architectural lenses:
 | Default IM open-platform prefix | `/im/v3/api/*` |
 | Default app-development prefix | `/app/v3/api/*` |
 | Default backend/operator prefix | `/backend/v3/api/*` |
-| Default dev application ingress | `127.0.0.1:18079` (`standalone.split-services.development`) |
+| Default dev application ingress | `127.0.0.1:18079` (`standalone.development`) |
 | Default dev platform gateway | `127.0.0.1:3900` (sibling `platform.api-gateway`) |
 | Production IM host | `im.sdkwork.com` |
 | Production platform gateway | `api.sdkwork.com` |
@@ -30,8 +30,8 @@ documentation is easiest to understand through five architectural lenses:
 
 ## Application Ingress
 
-`sdkwork-im-server` is the packaged application ingress. In `split-services` layouts it proxies to
-internal IM services declared in `specs/topology.spec.json`. In `unified-process` layouts it runs the
+`sdkwork-im-server` is the packaged application ingress. Under `cloud.*` profiles it fronts
+internal IM services declared in `specs/topology.spec.json`. Under `standalone.*` profiles it runs the
 assembled runtime in one process for smoke and local verification.
 
 Domains exposed through the ingress include:

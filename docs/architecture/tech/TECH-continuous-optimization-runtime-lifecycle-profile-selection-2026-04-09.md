@@ -5,12 +5,12 @@
 
 ## Context
 
-- `retired-lifecycle-status.*`、`inspect-runtime-local.*`、`repair-runtime-local.*` 已支持 `standalone.split-services.development` / `standalone.split-services.development` profile。
-- `init-config-local.*`、`retired-lifecycle-install.*`、`retired-lifecycle-start.*`、`retired-lifecycle-stop.*`、`retired-lifecycle-restart.*` 仍写死 `standalone.split-services.development`。
+- `retired-lifecycle-status.*`、`inspect-runtime-local.*`、`repair-runtime-local.*` 已支持 `standalone.development` / `standalone.development` profile。
+- `init-config-local.*`、`retired-lifecycle-install.*`、`retired-lifecycle-start.*`、`retired-lifecycle-stop.*`、`retired-lifecycle-restart.*` 仍写死 `standalone.development`。
 
 ## Confirmed Bug
 
-- 选择 `standalone.split-services.development` 时，运行时运维脚本与生命周期脚本会落到不同配置入口。
+- 选择 `standalone.development` 时，运行时运维脚本与生命周期脚本会落到不同配置入口。
 - `retired-lifecycle-restart.*` 无法把选定 profile 传给 `stop/start`。
 - 退役的 `init-config-local.*` 不再生成源码树运行配置。
 
@@ -52,10 +52,10 @@ cargo test -p sdkwork-api-im-standalone-gateway --offline -- --nocapture
 ## Result
 
 - lifecycle 与 runtime ops 现在共享同一 profile 解析合同。
-- `standalone.split-services.development` 已具备对称的 config/init/install/start/stop/restart 入口。
+- `standalone.development` 已具备对称的 config/init/install/start/stop/restart 入口。
 - 现有 Windows/CMD/PowerShell 回归全部通过。
 
 ## Boundary
 
 - 当前会话没有可用 Bash 运行时，若干 `.sh` 真实执行测试仍按既有机制跳过。
-- 本轮没有把 `standalone.split-services.development` 升级为独立 runtime topology，只修正选择入口与兼容回退。
+- 本轮没有把 `standalone.development` 升级为独立 runtime topology，只修正选择入口与兼容回退。

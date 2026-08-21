@@ -4,14 +4,14 @@
 
 - 上一轮已经冻结了 `artifactFileListPath`，让 bundle 级 artifact 名单入口不再漂移。
 - 但如果每次都要靠遍历 `evidenceSlots[*].status` 才能知道当前 bundle 采集完成度，operator 和后续自动化仍缺少一个稳定的机器可读摘要入口。
-- 当前环境依然没有真实 `standalone.split-services.development` 发布后执行窗口，因此本轮继续不伪造真实归档结果，只把 bundle 级 `collectionSummary` 合同冻结下来。
+- 当前环境依然没有真实 `standalone.development` 发布后执行窗口，因此本轮继续不伪造真实归档结果，只把 bundle 级 `collectionSummary` 合同冻结下来。
 
 ## 2. 实际落地
 
 ### 2.1 evidence index 顶层已新增 `collectionSummary`
 
 - 更新：`artifacts/releases/schemas/post-release-evidence-index.schema.json`
-- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.split-services.development-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.development-post-release-evidence-index.json`
 - 当前 `collectionSummary` 已固定字段：
   - `totalSlots`
   - `requiredSlots`
@@ -30,7 +30,7 @@
 ### 2.2 operator / release 文档已同步 completeness 摘要口径
 
 - 更新：`artifacts/releases/README.md`
-- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.split-services.development/README.md`
+- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.development/README.md`
 - 更新：`docs/部署/性能与灾备演练场景.md`
 - 更新：`docs/部署/性能与灾备演练场景.md`
 - 当前文档已明确：

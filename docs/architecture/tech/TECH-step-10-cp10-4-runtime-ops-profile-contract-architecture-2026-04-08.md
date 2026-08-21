@@ -13,7 +13,7 @@
   - `Wave D / Step 10 / CP10-4` 已把 runtime ops 从“存在脚本”推进到“遵守统一 profile 语义的 operator contract”
 - `137`
   - 本地部署拓扑现在不仅有 deploy profile 入口，也有对应的 inspect / repair / backup / restore 运行时运维入口
-  - `standalone.split-services.development` 已被明确定义为 config-first、runtime-contract fallback 的现阶段本地兼容入口
+  - `standalone.development` 已被明确定义为 config-first、runtime-contract fallback 的现阶段本地兼容入口
 - `142`
   - runtime operator config 已新增显式 profile selector 及 config 解析顺序
   - 这使运行目录选择不再是脚本内部隐式常量，而是受 deploy-time/operator config 约束的能力
@@ -21,11 +21,11 @@
 ## 本轮未兑现能力力力力力
 - `Step 10` 整步审计尚未写回
 - `Step 11` 的压测、故障演练、灾备验证尚未开始
-- `standalone.split-services.development` 的独立拓扑仍未进入本轮范围
+- `standalone.development` 的独立拓扑仍未进入本轮范围
 
 ## 是否偏离架构
 - 无偏离。
-- 本轮沿用 `CP10-2` 冻结的“`standalone.split-services.development` 当前仍复用 `standalone.split-services.development` 运行合同”，没有制造新的 runtime 旁路或额外 profile 分叉。
+- 本轮沿用 `CP10-2` 冻结的“`standalone.development` 当前仍复用 `standalone.development` 运行合同”，没有制造新的 runtime 旁路或额外 profile 分叉。
 
 ## 回写决议
 - `docs/架构/09-实施计划.md`

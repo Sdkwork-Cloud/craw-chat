@@ -39,7 +39,7 @@ Actions:
 
 Options:
   --env-file <path>       Runtime env file. Defaults to <config-dir>/server.env.
-  --config-dir <path>     Runtime config directory. Defaults to /etc/sdkwork/chat on Linux/macOS or ProgramData on Windows.
+  --config-dir <path>     Runtime config directory. Defaults to /etc/sdkwork/im on Linux/macOS or ProgramData on Windows.
   --install-root <path>   Source checkout/install root. Defaults to this repository root.
   --binary-path <path>    Release binary path. Defaults to target/release/sdkwork-api-im-standalone-gateway.
   --background            Start as a background process instead of foreground/systemd mode.
@@ -61,9 +61,9 @@ function requireValue(argv, index, flag) {
 
 function defaultConfigDir(platform = process.platform, env = process.env) {
   if (platform === 'win32') {
-    return path.join(env.ProgramData || 'C:\\ProgramData', 'sdkwork', 'chat');
+    return path.join(env.ProgramData || 'C:\\ProgramData', 'sdkwork', 'im');
   }
-  return '/etc/sdkwork/chat';
+  return '/etc/sdkwork/im';
 }
 
 function parseSourceServerArgs(argv = process.argv.slice(2), { env = process.env, platform = process.platform } = {}) {
@@ -232,7 +232,7 @@ function createResolvedSourceServerEnv({
       SDKWORK_IM_SERVER_BINARY_PATH: resolvedBinaryPath,
       SDKWORK_IM_CONFIG_FILE: env.SDKWORK_IM_CONFIG_FILE
         || fileEnv.SDKWORK_IM_CONFIG_FILE
-        || path.join(configDir, 'chat.toml'),
+        || path.join(configDir, 'config.toml'),
       SDKWORK_IM_DEPLOYMENT_PROFILE: env.SDKWORK_IM_DEPLOYMENT_PROFILE
         || fileEnv.SDKWORK_IM_DEPLOYMENT_PROFILE
         || 'standalone',

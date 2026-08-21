@@ -10,7 +10,7 @@
 - `message.edited / message.recalled` 的授权矩阵
 - `message.posted -> notification.requested` 的收件人选择规则
 
-目标不是增加额外能力，而是先把商业化产品必须具备的“谁能改、谁能撤回、谁能收到通知”收敛为稳定标准，并让当前 `standalone.split-services.development` 最小实现与该标准一致。
+目标不是增加额外能力，而是先把商业化产品必须具备的“谁能改、谁能撤回、谁能收到通知”收敛为稳定标准，并让当前 `standalone.development` 最小实现与该标准一致。
 
 ## 2. 消息变更授权标准
 

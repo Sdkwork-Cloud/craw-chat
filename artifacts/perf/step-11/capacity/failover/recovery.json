@@ -7,7 +7,7 @@
   "artifactKind": "recovery_json",
   "runId": "step11-capacity-local-failover-2026-06-17-doc-capture",
   "collectedAt": "2026-06-17",
-  "sourceProfile": "self-hosted.split-services.development",
+  "sourceProfile": "standalone.development",
   "sourceTier": "CI Smoke Tier",
   "sourceBaselinePath": "tools/perf/step-11-cp11-3-local-drill-baseline.json",
   "sourceTestPath": "services/session-gateway/tests/postgres_realtime_websocket_live_drill_test.rs",

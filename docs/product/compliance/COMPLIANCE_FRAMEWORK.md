@@ -70,7 +70,7 @@ evidence requirements for commercial deployment.
 | China (Mainland) | AliCloud / Tencent Cloud | `cloud.production` | All IM data within PRC |
 | Europe (EU) | AWS Frankfurt / Azure EU | `cloud.production` | All IM data within EU |
 | North America | AWS US-East / Azure US | `cloud.production` | All IM data within US |
-| Private/on-prem | Customer data center | `standalone.unified-process.production` | Customer-controlled |
+| Private/on-prem | Customer data center | `standalone.production` | Customer-controlled |
 
 ### 4.2 Cross-Border Transfer Controls
 

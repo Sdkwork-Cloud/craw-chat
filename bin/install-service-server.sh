@@ -10,9 +10,9 @@ EOF
 }
 
 instance_name="default"
-install_root="/opt/sdkwork/chat"
-config_dir="/etc/sdkwork/chat"
-log_dir="/var/log/sdkwork/chat"
+install_root="/opt/sdkwork/im"
+config_dir="/etc/sdkwork/im"
+log_dir="/var/log/sdkwork/im"
 service_mode="auto"
 
 server_path_for_instance() {
@@ -29,8 +29,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
-      log_dir="$(server_path_for_instance "/var/log/sdkwork/chat" "$instance_name")"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/im" "$instance_name")"
+      log_dir="$(server_path_for_instance "/var/log/sdkwork/im" "$instance_name")"
       shift 2
       ;;
     --install-root)
@@ -80,9 +80,9 @@ stderr_log_path="${log_dir}/sdkwork-api-im-standalone-gateway.err.log"
 
 if [[ -f "$systemd_template" ]]; then
   sed \
-    -e "s|WorkingDirectory=/opt/sdkwork/chat|WorkingDirectory=${install_root}|g" \
-    -e "s|EnvironmentFile=/etc/sdkwork/chat/server.env|EnvironmentFile=${config_dir}/server.env|g" \
-    -e "s|ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway|ExecStart=${service_binary_path}|g" \
+    -e "s|WorkingDirectory=/opt/sdkwork/im|WorkingDirectory=${install_root}|g" \
+    -e "s|EnvironmentFile=/etc/sdkwork/im/server.env|EnvironmentFile=${config_dir}/server.env|g" \
+    -e "s|ExecStart=/opt/sdkwork/im/bin/sdkwork-api-im-standalone-gateway|ExecStart=${service_binary_path}|g" \
     "$systemd_template" >"$generated_unit"
 fi
 

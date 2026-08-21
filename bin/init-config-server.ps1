@@ -1,9 +1,9 @@
 ﻿param(
     [string]$InstanceName = "default",
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
-    [string]$DataDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Data")),
-    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
-    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Run")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")),
+    [string]$DataDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Data")),
+    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Logs")),
+    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Run")),
     [string]$BindAddress = "0.0.0.0:18079",
     [string]$BaseUrl = "http://127.0.0.1:18079",
     [string]$ApiBaseUrl = "http://127.0.0.1:18079",
@@ -31,7 +31,7 @@ function Get-ServerPathForInstance {
     return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
 }
 
-$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
     $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
 }
@@ -63,7 +63,7 @@ foreach ($path in @($ConfigDir, $DataDir, $LogDir, $RunDir)) {
     }
 }
 
-$chatTomlPath = Join-Path $ConfigDir "chat.toml"
+$chatTomlPath = Join-Path $ConfigDir "config.toml"
 $serverEnvPath = Join-Path $ConfigDir "server.env"
 $postgresqlPath = Join-Path $ConfigDir "postgresql.yaml"
 $passwordFilePath = Join-Path $ConfigDir "database.secret"
@@ -189,6 +189,6 @@ if ((-not (Test-Path $passwordFilePath)) -or $Force) {
 }
 
 Write-Host "Rendered sdkwork-api-im-standalone-gateway configuration for instance '$InstanceName'."
-Write-Host "chat.toml: $chatTomlPath"
+Write-Host "config.toml: $chatTomlPath"
 Write-Host "server.env: $serverEnvPath"
 Write-Host "postgresql.yaml: $postgresqlPath"

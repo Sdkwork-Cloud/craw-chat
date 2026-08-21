@@ -17,8 +17,8 @@ repository-keyed OS/CI temporary directories outside the source checkout.
 
 Production installs use paths declared in `deployments/templates/server.env.example`:
 
-- data: `/var/lib/sdkwork/chat`
-- logs: `/var/log/sdkwork/chat`
-- run: `/run/sdkwork/chat`
+- data: `/var/lib/sdkwork/im`
+- logs: `/var/log/sdkwork/im`
+- run: `/run/sdkwork/im`
 
 See [Server Lifecycle](/deployment/server-lifecycle).

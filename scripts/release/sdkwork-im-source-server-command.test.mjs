@@ -58,7 +58,7 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkwork-im-source-server-
 const cleanupTempDir = () => fs.rmSync(tempDir, { force: true, recursive: true });
 process.once('exit', cleanupTempDir);
 const envFile = path.join(tempDir, 'server.env');
-const configFile = path.join(tempDir, 'chat.toml');
+const configFile = path.join(tempDir, 'config.toml');
 fs.writeFileSync(
   envFile,
   [
@@ -258,7 +258,7 @@ const deploymentReadme = fs.readFileSync(path.join(deploymentDocsRoot, 'README.m
 assert.ok(
   sourceDeployGuide.includes('pnpm run build:server:source')
     && sourceDeployGuide.includes('pnpm run start:server:source')
-    && sourceDeployGuide.includes('/etc/sdkwork/chat/server.env')
+    && sourceDeployGuide.includes('/etc/sdkwork/im/server.env')
     && sourceDeployGuide.includes('SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL'),
   'source deployment guide must document the pnpm workflow and base URL source of truth',
 );

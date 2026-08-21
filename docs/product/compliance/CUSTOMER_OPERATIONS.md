@@ -24,7 +24,7 @@ provider delivery plane is not implemented.
 | --- | --- |
 | `cloud.staging` | Pre-production validation |
 | `cloud.production` | Customer-facing SaaS |
-| `standalone.unified-process.production` | Private/on-prem single-node |
+| `standalone.production` | Private/on-prem single-node |
 
 Topology authority: `etc/topology/` and `specs/topology.spec.json`.
 

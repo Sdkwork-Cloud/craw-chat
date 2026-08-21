@@ -11,16 +11,16 @@ Server 与 container 默认使用 PostgreSQL。Desktop 本地用户数据使用�
 Linux server/service/container：
 
 ```text
-/etc/sdkwork/chat/chat.toml
-/etc/sdkwork/chat/server.env
-/etc/sdkwork/chat/postgresql.yaml
+/etc/sdkwork/im/config.toml
+/etc/sdkwork/im/server.env
+/etc/sdkwork/im/postgresql.yaml
 /etc/sdkwork/database/database.secret
-/var/lib/sdkwork/chat
-/var/log/sdkwork/chat
-/run/sdkwork/chat
+/var/lib/sdkwork/im
+/var/log/sdkwork/im
+/run/sdkwork/im
 ```
 
-Windows Service 使用 `%ProgramFiles%/sdkwork/chat` 与 `%ProgramData%/sdkwork/chat`。
+Windows Service 使用 `%ProgramFiles%/sdkwork/im` 与 `%ProgramData%/sdkwork/im`。
 
 ## postgresql.yaml 外部配置契约
 
@@ -58,7 +58,7 @@ pool:
 - `bootstrap-schema`：PostgreSQL 已存在，应用账号可写，初始化 schema
 - `create-db-and-schema`：管理员权限下创建数据库与 schema
 
-`init-storage-server` 使用 `/etc/sdkwork/chat/postgresql.yaml` 与平台等价路径；密码来自 `database.secret`，不得写入 Git 或安装包。
+`init-storage-server` 使用 `/etc/sdkwork/im/postgresql.yaml` 与平台等价路径；密码来自 `database.secret`，不得写入 Git 或安装包。
 
 ## server.env 最小字段
 
@@ -67,10 +67,10 @@ pool:
 ```env
 SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
 SDKWORK_IM_RUNTIME_TARGET=server
-SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
-SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat
-SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat
-SDKWORK_IM_RUN_DIR=/run/sdkwork/chat
+SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/im/config.toml
+SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/im
+SDKWORK_IM_LOG_DIR=/var/log/sdkwork/im
+SDKWORK_IM_RUN_DIR=/run/sdkwork/im
 SDKWORK_DATABASE_ENGINE=postgresql
 SDKWORK_DATABASE_HOST=postgres.internal.example.com
 SDKWORK_DATABASE_PORT=5432

@@ -30,7 +30,7 @@ Every bundle should include at least the following release records:
 The bundle may also freeze machine-readable artifacts that support release automation and auditing.
 
 - machine-readable evidence index
-  - example: `artifacts/releases/wave-d-2026-04-08/self-hosted.split-services.development-post-release-evidence-index.json`
+  - example: `artifacts/releases/wave-d-2026-04-08/standalone.development-post-release-evidence-index.json`
   - used to freeze operator templates, sample docs, and `evidenceSlots` as structured release data
 - machine-readable SDK release catalog
   - example: `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`

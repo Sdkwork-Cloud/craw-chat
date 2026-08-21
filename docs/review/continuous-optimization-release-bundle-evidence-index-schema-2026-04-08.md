@@ -2,12 +2,12 @@
 
 ## 1. 本轮背景
 
-- 上一轮已经把 `standalone.split-services.development` 的 post-release evidence index 固定成 machine-readable JSON。
+- 上一轮已经把 `standalone.development` 的 post-release evidence index 固定成 machine-readable JSON。
 - 但如果没有独立 schema contract，这份 JSON 仍容易在后续 bundle 中继续漂移：
   - 字段名可能变化
   - 状态值可能失控增长
   - `$schema`、bundle manifest、release README 之间没有统一锚点
-- 当前环境依然没有真实 `standalone.split-services.development` 发布后执行窗口，因此本轮继续避免伪造真实 evidence，而是先把 evidence index 的 schema contract 冻结下来。
+- 当前环境依然没有真实 `standalone.development` 发布后执行窗口，因此本轮继续避免伪造真实 evidence，而是先把 evidence index 的 schema contract 冻结下来。
 
 ## 2. 实际落地
 
@@ -35,7 +35,7 @@
 
 ### 2.2 现有 evidence index 已改为显式声明 `$schema`
 
-- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.split-services.development-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.development-post-release-evidence-index.json`
 - 当前 JSON 已显式声明：
   - `$schema = ../schemas/post-release-evidence-index.schema.json`
 - 这意味着后续同类 bundle 不再只是“长得像这份 JSON”，而是要对齐到同一份 schema contract。
@@ -66,7 +66,7 @@
 - 本轮仍然没有伪造真实 operator 执行证据，只是把“未来真实证据应该遵守什么结构”先冻结下来。
 - 这能降低后续 bundle 继续各写各的 JSON 结构、难以归档和自动核对的风险。
 - 下一轮仍可继续推进：
-  - 在真实 `standalone.split-services.development` 发布后验证窗口回填 schema-backed evidence index
+  - 在真实 `standalone.development` 发布后验证窗口回填 schema-backed evidence index
   - 为 evidence slot 追加时间戳、文件路径或 checksum 约定
   - 把同类 schema 扩展到更多 release bundle 资产
 

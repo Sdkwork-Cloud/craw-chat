@@ -64,5 +64,5 @@
 - 下一轮仍可继续推进：
   - release bundle 归档约定
   - runtime ops 最小 smoke 行为核对
-  - `standalone.split-services.development` 对称发布后验证样本
+  - `standalone.development` 对称发布后验证样本
 

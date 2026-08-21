@@ -31,7 +31,7 @@
 - 仓库继续明确区分：
   - gate 状态：`template_only_pending_execution`
   - slot 状态：`pending_collection`
-- `standalone.split-services.development` 继续作为 `Pre-Release Tier` 的默认 profile
+- `standalone.development` 继续作为 `Pre-Release Tier` 的默认 profile
 - `capacity-dedicated` 继续作为 `Capacity Tier` 的目标环境名
 - gate 模板内部既有 contract 仍然保持：
   - `collectionSummary`
@@ -50,5 +50,5 @@
 
 ## 下一步
 
-- 优先考虑回填一轮真实 `standalone.split-services.development` 的 `Pre-Release Tier` 样本
+- 优先考虑回填一轮真实 `standalone.development` 的 `Pre-Release Tier` 样本
 - 若继续做模板 contract，可再评估是否把高阶 tier 的摘要字段继续上浮到 catalog

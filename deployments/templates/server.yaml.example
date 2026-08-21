@@ -6,15 +6,15 @@ runtime:
   deploymentProfile: standalone
   runtimeTarget: server
   appCode: chat
-  configDirectory: /etc/sdkwork/chat
-  configFile: /etc/sdkwork/chat/chat.toml
-  dataDirectory: /var/lib/sdkwork/chat
-  dataDir: /var/lib/sdkwork/chat
-  logDirectory: /var/log/sdkwork/chat
-  logDir: /var/log/sdkwork/chat
-  cacheDirectory: /var/cache/sdkwork/chat
-  runtimeDirectory: /run/sdkwork/chat
-  runDir: /run/sdkwork/chat
+  configDirectory: /etc/sdkwork/im
+  configFile: /etc/sdkwork/im/config.toml
+  dataDirectory: /var/lib/sdkwork/im
+  dataDir: /var/lib/sdkwork/im
+  logDirectory: /var/log/sdkwork/im
+  logDir: /var/log/sdkwork/im
+  cacheDirectory: /var/cache/sdkwork/im
+  runtimeDirectory: /run/sdkwork/im
+  runDir: /run/sdkwork/im
 
 network:
   bindAddress: 0.0.0.0:18079
@@ -42,7 +42,7 @@ redis:
   host: redis.example.com
   port: 6379
   database: 0
-  passwordFile: /etc/sdkwork/chat/redis.secret
+  passwordFile: /etc/sdkwork/im/redis.secret
   keyPrefix: chat
   tls: false
   maxConnections: 16

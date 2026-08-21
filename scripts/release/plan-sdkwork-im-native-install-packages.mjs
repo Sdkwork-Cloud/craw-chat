@@ -200,12 +200,12 @@ function createNativeInstallPackageItem({
     packageKind: isServer ? 'server-native-installer' : 'desktop-native-installer',
     binaryName: isServer ? `${SERVER_BINARY_BASENAME}${platform === 'windows' ? '.exe' : ''}` : null,
     startCommand: isServer
-      ? (platform === 'windows' ? 'sc start sdkwork-chat' : 'sudo systemctl start sdkwork-chat')
+      ? (platform === 'windows' ? 'sc start sdkwork-im' : 'sudo systemctl start sdkwork-im')
       : null,
     healthChecks: isServer ? ['/healthz', '/readyz'] : [],
     stagingPackageId: isServer ? STAGING_ARCHIVE_PACKAGE_ID[platform]?.[architecture] : null,
     serviceName: isServer
-      ? (platform === 'windows' ? 'sdkwork-chat' : 'sdkwork-chat.service')
+      ? (platform === 'windows' ? 'sdkwork-im' : 'sdkwork-im.service')
       : null,
     buildHost: nativeBuildHostFor({ architecture, platform }),
     security: {

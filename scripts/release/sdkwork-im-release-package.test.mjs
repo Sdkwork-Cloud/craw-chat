@@ -76,9 +76,9 @@ const planIssues = planModule.validateSdkworkImInstallPackagePlan(releasePlan);
 assert.deepEqual(planIssues, [], `release package plan issues: ${planIssues.join('; ')}`);
 const renderedReleasePlan = planModule.renderSdkworkImInstallPackagePlan(releasePlan).join('\n');
 for (const expectedText of [
-  'paths=install=/opt/sdkwork/chat config=/etc/sdkwork/chat data=/var/lib/sdkwork/chat log=/var/log/sdkwork/chat run=/run/sdkwork/chat',
-  'paths=install=/usr/lib/sdkwork/chat config=/Library/Application Support/sdkwork/chat data=/Library/Application Support/sdkwork/chat/Data log=/Library/Logs/sdkwork/chat run=/Library/Application Support/sdkwork/chat/Run',
-  'paths=install=%ProgramFiles%/sdkwork/chat config=%ProgramData%/sdkwork/chat data=%ProgramData%/sdkwork/chat/Data log=%ProgramData%/sdkwork/chat/Logs run=%ProgramData%/sdkwork/chat/Run',
+  'paths=install=/opt/sdkwork/im config=/etc/sdkwork/im data=/var/lib/sdkwork/im log=/var/log/sdkwork/im run=/run/sdkwork/im',
+  'paths=install=/usr/lib/sdkwork/im config=/Library/Application Support/sdkwork/im data=/Library/Application Support/sdkwork/im/Data log=/Library/Logs/sdkwork/im run=/Library/Application Support/sdkwork/im/Run',
+  'paths=install=%ProgramFiles%/sdkwork/im config=%ProgramData%/sdkwork/im data=%ProgramData%/sdkwork/im/Data log=%ProgramData%/sdkwork/im/Logs run=%ProgramData%/sdkwork/im/Run',
 ]) {
   assert.match(renderedReleasePlan, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
 }
@@ -99,23 +99,23 @@ const serverPackagesByPlatform = new Map(
 );
 assert.equal(
   serverPackagesByPlatform.get('linux')?.databasePolicy?.configFile?.path,
-  '/etc/sdkwork/chat/chat.toml',
+  '/etc/sdkwork/im/config.toml',
   'linux server config file should use the Ubuntu production config root',
 );
 assert.deepEqual(
   serverPackagesByPlatform.get('linux')?.runtimePaths,
   {
-    installRoot: '/opt/sdkwork/chat',
-    configDir: '/etc/sdkwork/chat',
-    dataDir: '/var/lib/sdkwork/chat',
-    logDir: '/var/log/sdkwork/chat',
-    runDir: '/run/sdkwork/chat',
+    installRoot: '/opt/sdkwork/im',
+    configDir: '/etc/sdkwork/im',
+    dataDir: '/var/lib/sdkwork/im',
+    logDir: '/var/log/sdkwork/im',
+    runDir: '/run/sdkwork/im',
   },
   'linux server package should expose the complete Ubuntu production path matrix',
 );
 assert.equal(
   serverPackagesByPlatform.get('linux')?.databasePolicy?.dataDirectory?.path,
-  '/var/lib/sdkwork/chat',
+  '/var/lib/sdkwork/im',
   'linux server data directory should use the SDKWork production data root',
 );
 assert.equal(
@@ -125,54 +125,54 @@ assert.equal(
 );
 assert.equal(
   serverPackagesByPlatform.get('windows')?.databasePolicy?.configFile?.path,
-  '%ProgramData%/sdkwork/chat/chat.toml',
+  '%ProgramData%/sdkwork/im/config.toml',
   'windows server config file should use ProgramData Sdkwork IM config root',
 );
 assert.deepEqual(
   serverPackagesByPlatform.get('windows')?.runtimePaths,
   {
-    installRoot: '%ProgramFiles%/sdkwork/chat',
-    configDir: '%ProgramData%/sdkwork/chat',
-    dataDir: '%ProgramData%/sdkwork/chat/Data',
-    logDir: '%ProgramData%/sdkwork/chat/Logs',
-    runDir: '%ProgramData%/sdkwork/chat/Run',
+    installRoot: '%ProgramFiles%/sdkwork/im',
+    configDir: '%ProgramData%/sdkwork/im',
+    dataDir: '%ProgramData%/sdkwork/im/Data',
+    logDir: '%ProgramData%/sdkwork/im/Logs',
+    runDir: '%ProgramData%/sdkwork/im/Run',
   },
   'windows server package should expose the complete ProgramData path matrix',
 );
 assert.equal(
   serverPackagesByPlatform.get('windows')?.databasePolicy?.dataDirectory?.path,
-  '%ProgramData%/sdkwork/chat/Data',
+  '%ProgramData%/sdkwork/im/Data',
   'windows server data directory should use ProgramData Sdkwork IM data root',
 );
 assert.equal(
   serverPackagesByPlatform.get('windows')?.databasePolicy?.passwordFile?.path,
-  '%ProgramData%/sdkwork/chat/database.secret',
+  '%ProgramData%/sdkwork/im/database.secret',
   'windows PostgreSQL password file should stay under ProgramData Sdkwork IM config root',
 );
 assert.equal(
   serverPackagesByPlatform.get('macos')?.databasePolicy?.configFile?.path,
-  '/Library/Application Support/sdkwork/chat/chat.toml',
+  '/Library/Application Support/sdkwork/im/config.toml',
   'macOS server config file should use the Sdkwork IM application support config root',
 );
 assert.deepEqual(
   serverPackagesByPlatform.get('macos')?.runtimePaths,
   {
-    installRoot: '/usr/lib/sdkwork/chat',
-    configDir: '/Library/Application Support/sdkwork/chat',
-    dataDir: '/Library/Application Support/sdkwork/chat/Data',
-    logDir: '/Library/Logs/sdkwork/chat',
-    runDir: '/Library/Application Support/sdkwork/chat/Run',
+    installRoot: '/usr/lib/sdkwork/im',
+    configDir: '/Library/Application Support/sdkwork/im',
+    dataDir: '/Library/Application Support/sdkwork/im/Data',
+    logDir: '/Library/Logs/sdkwork/im',
+    runDir: '/Library/Application Support/sdkwork/im/Run',
   },
   'macOS server package should expose the complete application support path matrix',
 );
 assert.equal(
   serverPackagesByPlatform.get('macos')?.databasePolicy?.dataDirectory?.path,
-  '/Library/Application Support/sdkwork/chat/Data',
+  '/Library/Application Support/sdkwork/im/Data',
   'macOS server data directory should use the Sdkwork IM application support data root',
 );
 assert.equal(
   serverPackagesByPlatform.get('macos')?.databasePolicy?.passwordFile?.path,
-  '/Library/Application Support/sdkwork/chat/database.secret',
+  '/Library/Application Support/sdkwork/im/database.secret',
   'macOS PostgreSQL password file should stay under the Sdkwork IM config root',
 );
 
@@ -393,7 +393,7 @@ try {
   assert.equal(browserValidation.ok, true, `browser archive validation issues: ${browserValidation.issues.join('; ')}`);
 
   writeFixture(serverStage, 'bin/sdkwork-api-im-standalone-gateway.exe', 'server');
-  writeFixture(serverStage, 'config/chat.toml.example', '[server]\nbind_address = "127.0.0.1:18079"\n');
+  writeFixture(serverStage, 'config/config.toml.example', '[server]\nbind_address = "127.0.0.1:18079"\n');
   writeFixture(serverStage, 'config/server.env.example', 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=127.0.0.1:18079\n');
   writeFixture(serverStage, 'config/postgresql.yaml.example', 'engine: postgresql');
   writeFixture(serverStage, 'INSTALL.md', '# install');
@@ -553,7 +553,7 @@ assert.equal(
 );
 const stagingArchivePaths = new Set(dryRunStagingPlan.actions.map((action) => action.archivePath).filter(Boolean));
 for (const expectedPath of [
-  'config/chat.toml.example',
+  'config/config.toml.example',
   'config/postgresql.yaml.example',
   'service/linux/sdkwork-api-im-standalone-gateway.service',
   'service/macos/com.sdkwork.im.api-standalone-gateway.plist',
@@ -576,31 +576,31 @@ const linuxGeneratedEnvAction = linuxStagingPlan.actions.find((action) => action
 assert.equal(typeof linuxGeneratedEnvAction?.contentFactory, 'function', 'linux staging plan should generate server env template');
 const linuxGeneratedEnv = linuxGeneratedEnvAction.contentFactory();
 for (const expectedText of [
-  'SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml',
-  'SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat',
-  'SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat',
-  'SDKWORK_IM_RUN_DIR=/run/sdkwork/chat',
+  'SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/im/config.toml',
+  'SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/im',
+  'SDKWORK_IM_LOG_DIR=/var/log/sdkwork/im',
+  'SDKWORK_IM_RUN_DIR=/run/sdkwork/im',
   'SDKWORK_IM_ID_NODE_ID=1',
   'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
   'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
   'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
-  'SDKWORK_IM_ADMIN_SITE_DIR=/opt/sdkwork/chat/web/sdkwork-im-pc/dist',
-  'SDKWORK_IM_H5_SITE_DIR=/opt/sdkwork/chat/web/sdkwork-im-h5/dist',
+  'SDKWORK_IM_ADMIN_SITE_DIR=/opt/sdkwork/im/web/sdkwork-im-pc/dist',
+  'SDKWORK_IM_H5_SITE_DIR=/opt/sdkwork/im/web/sdkwork-im-h5/dist',
 ]) {
   assert.match(linuxGeneratedEnv, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
 }
 assert.doesNotMatch(linuxGeneratedEnv, /\/etc\/sdkwork-im\/default|\/opt\/sdkwork-im/u);
 
-const serverYamlTemplate = readText('deployments', 'templates', 'chat.toml.example');
+const serverYamlTemplate = readText('deployments', 'templates', 'config.toml.example');
 for (const expectedText of [
-  'config_file = "/etc/sdkwork/chat/chat.toml"',
+  'config_file = "/etc/sdkwork/im/config.toml"',
   'base_url = "https://im.sdkwork.com"',
   'api_base_url = "https://im.sdkwork.com"',
   'websocket_base_url = "wss://im.sdkwork.com"',
   'docs_base_url = "https://im.sdkwork.com/docs"',
-  'data_directory = "/var/lib/sdkwork/chat"',
-  'log_directory = "/var/log/sdkwork/chat"',
-  'runtime_directory = "/run/sdkwork/chat"',
+  'data_directory = "/var/lib/sdkwork/im"',
+  'log_directory = "/var/log/sdkwork/im"',
+  'runtime_directory = "/run/sdkwork/im"',
   'password_file = "/etc/sdkwork/database/database.secret"',
 ]) {
   assert.match(serverYamlTemplate, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
@@ -609,10 +609,10 @@ assert.doesNotMatch(serverYamlTemplate, /\/etc\/sdkwork-im\/default|\/var\/run\/
 
 const serverEnvTemplate = readText('deployments', 'templates', 'server.env.example');
 for (const expectedText of [
-  'SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml',
-  'SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat',
-  'SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat',
-  'SDKWORK_IM_RUN_DIR=/run/sdkwork/chat',
+  'SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/im/config.toml',
+  'SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/im',
+  'SDKWORK_IM_LOG_DIR=/var/log/sdkwork/im',
+  'SDKWORK_IM_RUN_DIR=/run/sdkwork/im',
   'SDKWORK_IM_ID_NODE_ID=1',
 ]) {
   assert.match(serverEnvTemplate, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
@@ -625,9 +625,9 @@ assert.doesNotMatch(postgresqlTemplate, /\/etc\/sdkwork-im\/default/u);
 
 const systemdTemplate = readText('deployments', 'systemd', 'sdkwork-api-im-standalone-gateway.service');
 for (const expectedText of [
-  'WorkingDirectory=/opt/sdkwork/chat',
-  'EnvironmentFile=/etc/sdkwork/chat/server.env',
-  'ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway',
+  'WorkingDirectory=/opt/sdkwork/im',
+  'EnvironmentFile=/etc/sdkwork/im/server.env',
+  'ExecStart=/opt/sdkwork/im/bin/sdkwork-api-im-standalone-gateway',
 ]) {
   assert.match(systemdTemplate, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
 }
@@ -658,7 +658,7 @@ assert.match(
 assert.match(
   installServerPs1,
   /config[\\/]chat\.toml\.example/u,
-  'bin/install-server.ps1 should support server archive config/chat.toml.example',
+  'bin/install-server.ps1 should support server archive config/config.toml.example',
 );
 assert.match(
   installServerPs1,
@@ -674,7 +674,7 @@ assert.match(
 assert.match(
   installServerSh,
   /config\/chat\.toml\.example/u,
-  'bin/install-server.sh should support server archive config/chat.toml.example',
+  'bin/install-server.sh should support server archive config/config.toml.example',
 );
 assert.match(
   installServerSh,

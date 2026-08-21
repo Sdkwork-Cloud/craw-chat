@@ -941,7 +941,7 @@ assert.ok(
     )
     && postgresDatabaseConfigIndexSource.includes('pnpm dev')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev:desktop')
-    && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/chat.toml')
+    && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/im/config.toml')
     && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/database/database.secret'),
   'PostgreSQL database configuration index must link the environment-specific development and production guides',
 );
@@ -958,8 +958,8 @@ assert.ok(
   'development PostgreSQL guide must document local env profile setup and both dev startup commands',
 );
 assert.ok(
-  postgresProductionGuideSource.includes('/etc/sdkwork/chat/')
-    && postgresProductionGuideSource.includes('chat.toml')
+  postgresProductionGuideSource.includes('/etc/sdkwork/im/')
+    && postgresProductionGuideSource.includes('config.toml')
     && postgresProductionGuideSource.includes('server.env')
     && postgresProductionGuideSource.includes('postgresql.yaml')
     && postgresProductionGuideSource.includes('database.secret')

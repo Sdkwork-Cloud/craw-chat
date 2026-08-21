@@ -43,8 +43,8 @@ stack for the selected topology v5 profile. Public profile ids do not encode pro
 Production server installs use:
 
 - `deployments/templates/server.env.example`
-- `deployments/templates/chat.toml.example`
-- `/etc/sdkwork/chat/server.env`
+- `deployments/templates/config.toml.example`
+- `/etc/sdkwork/im/server.env`
 
 Do not use retired pre-topology-v5 profile names or legacy source-tree runtime config directories.
 

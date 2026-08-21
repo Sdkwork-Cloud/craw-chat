@@ -3,7 +3,7 @@
 原生安装包面向 Ubuntu/Debian 发行版，将 standalone 服务端按
 [RUNTIME_DIRECTORY_SPEC](../../../sdkwork-specs/RUNTIME_DIRECTORY_SPEC.md) §4.1
 与 [PACKAGING_SPEC](../../../sdkwork-specs/PACKAGING_SPEC.md) §5.5 的目录规范安装，
-并注册 `sdkwork-chat.service` systemd 服务。
+并注册 `sdkwork-im.service` systemd 服务。
 
 ## 1. 获取安装包
 
@@ -39,18 +39,18 @@ sudo apt install ./sdkwork-im-linux-ubuntu-x64-standalone-server-deb-<version>.d
 postinst 脚本完成（不启动服务）：
 
 - 创建系统账号 `sdkwork`（`/usr/sbin/nologin`）
-- 创建目录树：`/usr/lib/sdkwork/chat`（只读资产）、`/etc/sdkwork/chat`（配置，
+- 创建目录树：`/usr/lib/sdkwork/im`（只读资产）、`/etc/sdkwork/im`（配置，
   `0750 root:sdkwork`）、`/etc/sdkwork/database`（工作区数据库配置）、
-  `/var/lib|/var/log|/var/cache|/run/sdkwork/chat`（数据/日志/缓存/运行时态，
+  `/var/lib|/var/log|/var/cache|/run/sdkwork/im`（数据/日志/缓存/运行时态，
   `0750 sdkwork:sdkwork`）
-- 生成 `/etc/sdkwork/chat/server.env`（进程环境，无秘密）与
+- 生成 `/etc/sdkwork/im/server.env`（进程环境，无秘密）与
   `/etc/sdkwork/database/database.secret`（占位 `change-me`，启动前必须替换）
-- `systemctl daemon-reload && systemctl enable sdkwork-chat.service`
+- `systemctl daemon-reload && systemctl enable sdkwork-im.service`
 
 ## 3. 配置 PostgreSQL
 
 ```bash
-sudo editor /etc/sdkwork/chat/server.env
+sudo editor /etc/sdkwork/im/server.env
 sudo editor /etc/sdkwork/database/database.secret
 ```
 
@@ -86,9 +86,9 @@ sudo editor /etc/sdkwork/database/database.secret
 ## 4. 启动与验证
 
 ```bash
-sudo systemctl start sdkwork-chat
-sudo systemctl status sdkwork-chat --no-pager
-sudo journalctl -u sdkwork-chat -f
+sudo systemctl start sdkwork-im
+sudo systemctl status sdkwork-im --no-pager
+sudo journalctl -u sdkwork-im -f
 
 curl -fsS http://127.0.0.1:18079/healthz   # {"status":"ok"}
 curl -fsS http://127.0.0.1:18079/readyz
@@ -98,17 +98,17 @@ curl -fsS http://127.0.0.1:18079/readyz
 
 | 角色 | 路径 | 属主/权限 |
 |---|---|---|
-| 私有运行资产（二进制） | `/usr/lib/sdkwork/chat/bin` | root:root 0755 |
-| 共享只读资产（web） | `/usr/share/sdkwork/chat/web` | root:root 0755 |
-| 文档 | `/usr/share/doc/sdkwork/chat/INSTALL.md` | root:root 0644 |
-| 安装清单 | `/usr/share/sdkwork/chat/install-manifest.json` | root:root 0644 |
-| 运行时配置 | `/etc/sdkwork/chat/`（`server.env`、`*.example`） | root:sdkwork 0750/0640 |
+| 私有运行资产（二进制） | `/usr/lib/sdkwork/im/bin` | root:root 0755 |
+| 共享只读资产（web） | `/usr/share/sdkwork/im/web` | root:root 0755 |
+| 文档 | `/usr/share/doc/sdkwork/im/INSTALL.md` | root:root 0644 |
+| 安装清单 | `/usr/share/sdkwork/im/install-manifest.json` | root:root 0644 |
+| 运行时配置 | `/etc/sdkwork/im/`（`server.env`、`*.example`） | root:sdkwork 0750/0640 |
 | 工作区数据库配置 | `/etc/sdkwork/database/`（`database.secret`） | root:sdkwork 0750/0640 |
-| 持久数据 | `/var/lib/sdkwork/chat` | sdkwork:sdkwork 0750 |
-| 日志 | `/var/log/sdkwork/chat` | sdkwork:sdkwork 0750 |
-| 缓存 | `/var/cache/sdkwork/chat` | sdkwork:sdkwork 0750 |
-| 运行时态 | `/run/sdkwork/chat` | sdkwork:sdkwork 0750 |
-| 服务单元 | `/usr/lib/systemd/system/sdkwork-chat.service` | root:root 0644 |
+| 持久数据 | `/var/lib/sdkwork/im` | sdkwork:sdkwork 0750 |
+| 日志 | `/var/log/sdkwork/im` | sdkwork:sdkwork 0750 |
+| 缓存 | `/var/cache/sdkwork/im` | sdkwork:sdkwork 0750 |
+| 运行时态 | `/run/sdkwork/im` | sdkwork:sdkwork 0750 |
+| 服务单元 | `/usr/lib/systemd/system/sdkwork-im.service` | root:root 0644 |
 
 ## 6. nginx 反向代理（可选）
 
@@ -142,6 +142,6 @@ sudo apt install ./sdkwork-im-linux-ubuntu-x64-standalone-server-deb-<old-versio
 sudo apt remove sdkwork-chat
 ```
 
-prerm 会停止并禁用 `sdkwork-chat.service`。`/var/lib/sdkwork/chat` 数据与
-`/etc/sdkwork/chat` 配置按 dpkg conffile 规则保留；`sudo apt purge sdkwork-chat`
+prerm 会停止并禁用 `sdkwork-im.service`。`/var/lib/sdkwork/im` 数据与
+`/etc/sdkwork/im` 配置按 dpkg conffile 规则保留；`sudo apt purge sdkwork-chat`
 清理配置文件（数据目录需手动删除）。

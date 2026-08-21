@@ -148,4 +148,4 @@ SELECT current_database(), current_user, current_schema();
 
 ## 7. 与 production 的边界
 
-`.env.postgres` 仅用于本地开发和集成测试。server 发布包使用 `/etc/sdkwork/chat/chat.toml`、`/etc/sdkwork/chat/server.env`、`/etc/sdkwork/chat/postgresql.yaml` 与 `/etc/sdkwork/database/database.secret`。desktop 发布包和安装运行时本地用户数据不依赖 PostgreSQL,使用浏览器本地存储(IndexedDB / localStorage)。
+`.env.postgres` 仅用于本地开发和集成测试。server 发布包使用 `/etc/sdkwork/im/config.toml`、`/etc/sdkwork/im/server.env`、`/etc/sdkwork/im/postgresql.yaml` 与 `/etc/sdkwork/database/database.secret`。desktop 发布包和安装运行时本地用户数据不依赖 PostgreSQL,使用浏览器本地存储(IndexedDB / localStorage)。

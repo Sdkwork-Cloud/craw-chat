@@ -3,7 +3,7 @@
   "step": "11",
   "tierId": "pre-release",
   "tier": "Pre-Release Tier",
-  "profile": "self-hosted.split-services.development",
+  "profile": "standalone.development",
   "artifact": "step-11-tier-evidence-index",
   "state": "evidence_collected_gate_blocked",
   "gateTemplate": "tools/perf/step-11-pre-release-tier-gate.json",

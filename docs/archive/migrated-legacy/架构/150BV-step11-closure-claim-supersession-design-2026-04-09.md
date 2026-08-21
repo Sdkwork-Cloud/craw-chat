@@ -7,7 +7,7 @@
 
 ## State Model
 
-- Step 11 capability baseline: closed at CI Smoke Tier / standalone.split-services.development level
+- Step 11 capability baseline: closed at CI Smoke Tier / standalone.development level
 - Pre-Release Tier: `evidence_collected_gate_blocked`
 - Capacity Tier: `template_only_pending_execution`
 - `message_metrics` was collected on `2026-04-09`
@@ -17,10 +17,10 @@
 ## 2026-04-09 Correction
 
 - This historical closure claim is superseded by the Step 11 tier evidence indexes added on 2026-04-09.
-- Step 11 capability baseline was closed for CI Smoke Tier / standalone.split-services.development evidence only.
+- Step 11 capability baseline was closed for CI Smoke Tier / standalone.development evidence only.
 - Pre-Release Tier now moves to evidence_collected_gate_blocked.
 - Capacity Tier still stays template_only_pending_execution.
-- Pre-Release Tier is still not full gate sign-off because the artifacts are doc-captured from published CI Smoke Tier / standalone.split-services.development evidence.
+- Pre-Release Tier is still not full gate sign-off because the artifacts are doc-captured from published CI Smoke Tier / standalone.development evidence.
 
 ## Boundary
 

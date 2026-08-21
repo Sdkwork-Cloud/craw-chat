@@ -2,12 +2,12 @@
   "step": "11",
   "tierId": "pre-release",
   "tier": "Pre-Release Tier",
-  "profile": "self-hosted.split-services.development",
+  "profile": "standalone.development",
   "scenarioFamily": "stream",
   "artifactKind": "metrics_json",
   "runId": "step11-cp11-2-local-stream-2026-04-08-doc-capture",
   "collectedAt": "2026-04-08",
-  "sourceProfile": "self-hosted.split-services.development",
+  "sourceProfile": "standalone.development",
   "sourceTier": "CI Smoke Tier",
   "sourceBaselinePath": "tools/perf/step-11-cp11-2-local-baseline.json",
   "sourceTestPath": "services/session-gateway/tests/postgres_realtime_live_runtime_test.rs",
@@ -20,5 +20,5 @@
   "totalDurationMs": 6.03,
   "frameP95Ms": 0.117,
   "framesPerSecond": 10613.071,
-  "boundary": "This artifact backfills one published local CP11-2 stream baseline into the Pre-Release Tier artifact root. frameP95Ms is doc-captured from published appendP95Ms, and this completes truthful artifact collection while remaining gate-blocked because the evidence is backfilled from published CI Smoke Tier / self-hosted.split-services.development output rather than full Pre-Release Tier sign-off."
+  "boundary": "This artifact backfills one published local CP11-2 stream baseline into the Pre-Release Tier artifact root. frameP95Ms is doc-captured from published appendP95Ms, and this completes truthful artifact collection while remaining gate-blocked because the evidence is backfilled from published CI Smoke Tier / standalone.development output rather than full Pre-Release Tier sign-off."
 }

@@ -12,9 +12,9 @@
 //   macos   .pkg   pkgbuild (macOS host / CI only)
 //
 // Directory mapping follows PACKAGING_SPEC §5.5 and RUNTIME_DIRECTORY_SPEC
-// §4: private runtime assets under /usr/lib/sdkwork/chat (Linux) and
-// %ProgramFiles%\sdkwork\chat (Windows), config under /etc/sdkwork/chat and
-// %ProgramData%\sdkwork\chat, workspace database secret under
+// §4: private runtime assets under /usr/lib/sdkwork/im (Linux) and
+// %ProgramFiles%\sdkwork\im (Windows), config under /etc/sdkwork/im and
+// %ProgramData%\sdkwork\im, workspace database secret under
 // /etc/sdkwork/database/database.secret.
 //
 // The .deb and .msi are built with deterministic output (gzip mtime 0, sorted
@@ -67,23 +67,23 @@ const NATIVE_MANIFEST_SCHEMA_VERSION = '2026-08-08.sdkwork-im.native-installer-m
 const SNAPSHOT_SCHEMA_VERSION = '2026-08-08.sdkwork-im.native-installer-snapshot.v1';
 const SHA256SUMS_FILE = 'SHA256SUMS';
 
-// RUNTIME_DIRECTORY_SPEC §4.1/§4.4 canonical host paths (application code
-// `chat`; PACKAGING_SPEC §5.5 installer projection).
-const LINUX_NATIVE_INSTALL_ROOT = '/usr/lib/sdkwork/chat';
-const LINUX_NATIVE_SHARED_ROOT = '/usr/share/sdkwork/chat';
-const LINUX_NATIVE_SHARED_DOC_ROOT = '/usr/share/doc/sdkwork/chat';
-const LINUX_SERVICE_CONFIG_ROOT = '/etc/sdkwork/chat';
+// RUNTIME_DIRECTORY_SPEC §4.1/§4.4 canonical host paths (runtime code
+// `im`; PACKAGING_SPEC §5.5 installer projection).
+const LINUX_NATIVE_INSTALL_ROOT = '/usr/lib/sdkwork/im';
+const LINUX_NATIVE_SHARED_ROOT = '/usr/share/sdkwork/im';
+const LINUX_NATIVE_SHARED_DOC_ROOT = '/usr/share/doc/sdkwork/im';
+const LINUX_SERVICE_CONFIG_ROOT = '/etc/sdkwork/im';
 const LINUX_SERVICE_DATABASE_SECRET_ROOT = '/etc/sdkwork/database';
 const LINUX_SERVICE_DATABASE_SECRET_FILE = '/etc/sdkwork/database/database.secret';
-const LINUX_SERVICE_DATA_ROOT = '/var/lib/sdkwork/chat';
-const LINUX_SERVICE_LOG_ROOT = '/var/log/sdkwork/chat';
-const LINUX_SERVICE_CACHE_ROOT = '/var/cache/sdkwork/chat';
-const LINUX_SERVICE_RUN_ROOT = '/run/sdkwork/chat';
-const LINUX_SYSTEMD_UNIT_PATH = '/usr/lib/systemd/system/sdkwork-chat.service';
+const LINUX_SERVICE_DATA_ROOT = '/var/lib/sdkwork/im';
+const LINUX_SERVICE_LOG_ROOT = '/var/log/sdkwork/im';
+const LINUX_SERVICE_CACHE_ROOT = '/var/cache/sdkwork/im';
+const LINUX_SERVICE_RUN_ROOT = '/run/sdkwork/im';
+const LINUX_SYSTEMD_UNIT_PATH = '/usr/lib/systemd/system/sdkwork-im.service';
 const LINUX_SERVICE_ENV_FILE = `${LINUX_SERVICE_CONFIG_ROOT}/server.env`;
 
 // Windows: service name per PACKAGING_SPEC §5.5 (SCM name sdkwork-<code>).
-const WINDOWS_SERVICE_NAME = 'sdkwork-chat';
+const WINDOWS_SERVICE_NAME = 'sdkwork-im';
 const WINDOWS_SERVICE_DISPLAY_NAME = 'SDKWork IM Standalone API Gateway';
 // Fixed upgrade code: changing it would orphan previous installations.
 const WINDOWS_UPGRADE_CODE = '8F2C4E1A-6B9D-4A3F-9C5E-2D1B7A0F3E8C';
@@ -95,9 +95,9 @@ const WINSW_X64_SHA256 = '05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c72655
 const WINSW_X64_SIZE = 18243033;
 const WINSW_DOWNLOAD_URL = `https://github.com/winsw/winsw/releases/download/v${WINSW_VERSION}/WinSW-x64.exe`;
 
-const MACOS_SERVICE_ROOT = '/Library/Application Support/sdkwork/chat';
-const MACOS_INSTALL_ROOT = '/usr/lib/sdkwork/chat';
-const MACOS_LAUNCH_DAEMON_PATH = '/Library/LaunchDaemons/com.sdkwork.chat.plist';
+const MACOS_SERVICE_ROOT = '/Library/Application Support/sdkwork/im';
+const MACOS_INSTALL_ROOT = '/usr/lib/sdkwork/im';
+const MACOS_LAUNCH_DAEMON_PATH = '/Library/LaunchDaemons/com.sdkwork.im.plist';
 
 // Embedded dependency workspaces whose packaged database modules must exist in
 // the installed package (the standalone gateway boots each module's lifecycle
@@ -123,7 +123,7 @@ const EXTRA_APP_ROOT_DIRS = {
   'sdkwork-iam': ['iam'],
 };
 const LINUX_MODULE_ROOT = `${LINUX_SERVICE_DATA_ROOT}/modules`;
-const WINDOWS_MODULE_ROOT = 'sdkwork/chat/modules';
+const WINDOWS_MODULE_ROOT = 'sdkwork/im/modules';
 const MACOS_MODULE_ROOT = `${MACOS_SERVICE_ROOT}/modules`;
 
 const SERVER_BINARY_BASENAME = 'sdkwork-api-im-standalone-gateway';
@@ -131,7 +131,7 @@ const APP_CONFIG_ARCHIVE_PATH = 'sdkwork.app.config.json';
 const IM_DATABASE_MODULE_ARCHIVE_PATH = 'database';
 const INSTALL_MANIFEST_ARCHIVE_PATH = 'install-manifest.json';
 const DEB_INSTALL_MANIFEST_PATH = `${LINUX_NATIVE_SHARED_ROOT}/${INSTALL_MANIFEST_ARCHIVE_PATH}`;
-const MSI_INSTALL_MANIFEST_PATH = 'sdkwork/chat/install-manifest.json';
+const MSI_INSTALL_MANIFEST_PATH = 'sdkwork/im/install-manifest.json';
 
 function printHelp() {
   console.log(`Usage: node scripts/release/build-sdkwork-im-native-installer.mjs [options]
@@ -140,7 +140,7 @@ Build Sdkwork IM platform-native server installers from staged production files.
 
 Native package mapping (server profile):
   linux   .deb   ar archive (control + data, generated systemd unit)
-  windows .msi   WiX CLI (WinSW-registered sdkwork-chat service)
+  windows .msi   WiX CLI (WinSW-registered sdkwork-im service)
   macos   .pkg   pkgbuild (macOS host / CI only)
 
 Options:
@@ -313,7 +313,7 @@ function validateArchiveBuildPlanEntries(buildPlan) {
   }
   for (const requiredPath of [
     `bin/${buildPlan.package?.binaryName ?? SERVER_BINARY_BASENAME}`,
-    'config/chat.toml.example',
+    'config/config.toml.example',
     'config/server.env.example',
     'config/postgresql.yaml.example',
     'INSTALL.md',
@@ -523,13 +523,13 @@ async function collectPackageFileEntries(plan, { generatedAt }) {
   if (plan.package.platform === 'linux') {
     const unitBytes = Buffer.from(createSystemdUnit(plan), 'utf8');
     files.push({
-      path: 'service/linux/sdkwork-chat.service',
+      path: 'service/linux/sdkwork-im.service',
       size: unitBytes.length,
       sha256: sha256(unitBytes),
       generated: true,
     });
     fileEntries.push({
-      relativePath: 'service/linux/sdkwork-chat.service',
+      relativePath: 'service/linux/sdkwork-im.service',
       data: unitBytes,
       mode: 0o644,
     });
@@ -543,30 +543,30 @@ async function collectPackageFileEntries(plan, { generatedAt }) {
       version: WINSW_VERSION,
       license: 'MIT',
       url: 'https://github.com/winsw/winsw',
-      file: 'service/windows/sdkwork-chat-service.exe',
+      file: 'service/windows/sdkwork-im-service.exe',
       sha256: sha256(winswBytes),
       note: 'Windows service wrapper around the standalone gateway; downloaded at build time and verified against the pinned digest.',
     });
     files.push({
-      path: 'service/windows/sdkwork-chat-service.exe',
+      path: 'service/windows/sdkwork-im-service.exe',
       size: winswBytes.length,
       sha256: sha256(winswBytes),
       thirdParty: 'WinSW',
     });
     files.push({
-      path: 'service/windows/sdkwork-chat-service.xml',
+      path: 'service/windows/sdkwork-im-service.xml',
       size: winswXmlBytes.length,
       sha256: sha256(winswXmlBytes),
       generated: true,
     });
     fileEntries.push(
       {
-        relativePath: 'service/windows/sdkwork-chat-service.exe',
+        relativePath: 'service/windows/sdkwork-im-service.exe',
         data: winswBytes,
         mode: 0o755,
       },
       {
-        relativePath: 'service/windows/sdkwork-chat-service.xml',
+        relativePath: 'service/windows/sdkwork-im-service.xml',
         data: winswXmlBytes,
         mode: 0o644,
       },
@@ -705,8 +705,8 @@ function createDebianControl(plan) {
     'Description: SDKWork IM standalone API gateway (server)',
     ' Standalone IM server native installer: gateway binary, renderer web assets,',
     ' runtime configuration templates, and systemd service registration.',
-    ' Installs under /usr/lib/sdkwork/chat with config in /etc/sdkwork/chat and',
-    ' durable data in /var/lib/sdkwork/chat per RUNTIME_DIRECTORY_SPEC.',
+    ' Installs under /usr/lib/sdkwork/im with config in /etc/sdkwork/im and',
+    ' durable data in /var/lib/sdkwork/im per RUNTIME_DIRECTORY_SPEC.',
     '',
   ].join('\n');
 }
@@ -728,7 +728,7 @@ function createDebianPostinst(plan) {
     `chmod 0750 ${LINUX_SERVICE_CONFIG_ROOT} ${LINUX_SERVICE_DATABASE_SECRET_ROOT}`,
     `chown -R sdkwork:sdkwork ${LINUX_SERVICE_DATA_ROOT} ${LINUX_SERVICE_LOG_ROOT} ${LINUX_SERVICE_CACHE_ROOT} ${LINUX_SERVICE_RUN_ROOT}`,
     `chmod 0750 ${LINUX_SERVICE_DATA_ROOT} ${LINUX_SERVICE_LOG_ROOT} ${LINUX_SERVICE_CACHE_ROOT} ${LINUX_SERVICE_RUN_ROOT} ${LINUX_SERVICE_DATA_ROOT}/secrets`,
-    // Config templates installed by dpkg land in /etc/sdkwork/chat with 0640
+    // Config templates installed by dpkg land in /etc/sdkwork/im with 0640
     // root:sdkwork (dpkg installs 0644; tighten here).
     `chown root:sdkwork ${LINUX_SERVICE_CONFIG_ROOT}/*.example 2>/dev/null || true`,
     `chmod 0640 ${LINUX_SERVICE_CONFIG_ROOT}/*.example 2>/dev/null || true`,
@@ -767,7 +767,7 @@ function createDebianPostinst(plan) {
     ),
     // Payment credential master key: required in production unless a payment
     // credential cipher host is installed; auto-created in development.
-    'SDKWORK_PAYMENT_CREDENTIAL_MASTER_KEY_FILE=/var/lib/sdkwork/chat/secrets/payment-credential-master.key',
+    'SDKWORK_PAYMENT_CREDENTIAL_MASTER_KEY_FILE=/var/lib/sdkwork/im/secrets/payment-credential-master.key',
     'RUST_LOG=info',
     'EOF',
     'fi',
@@ -782,7 +782,7 @@ function createDebianPostinst(plan) {
     `chmod 0640 ${LINUX_SERVICE_DATABASE_SECRET_FILE}`,
     'if command -v systemctl >/dev/null 2>&1; then',
     '  systemctl daemon-reload || true',
-    '  systemctl enable sdkwork-chat.service >/dev/null 2>&1 || true',
+    '  systemctl enable sdkwork-im.service >/dev/null 2>&1 || true',
     'fi',
     'cat <<\'EOF\'',
     ...summary,
@@ -797,8 +797,8 @@ function createDebianPrerm() {
     '#!/bin/sh',
     'set -e',
     'if [ "$1" = "remove" ] && command -v systemctl >/dev/null 2>&1; then',
-    '  systemctl stop sdkwork-chat.service >/dev/null 2>&1 || true',
-    '  systemctl disable sdkwork-chat.service >/dev/null 2>&1 || true',
+    '  systemctl stop sdkwork-im.service >/dev/null 2>&1 || true',
+    '  systemctl disable sdkwork-im.service >/dev/null 2>&1 || true',
     'fi',
     'exit 0',
     '',
@@ -813,14 +813,14 @@ function debianInstallSummaryLines(plan) {
     `Package: ${plan.package.id}`,
     `Service environment: ${LINUX_SERVICE_ENV_FILE}`,
     `PostgreSQL password file: ${LINUX_SERVICE_DATABASE_SECRET_FILE}`,
-    'Systemd service: sdkwork-chat.service',
+    'Systemd service: sdkwork-im.service',
     '',
     'Before first start:',
     `  sudo editor ${LINUX_SERVICE_ENV_FILE}`,
     `  sudo editor ${LINUX_SERVICE_DATABASE_SECRET_FILE}`,
-    '  sudo systemctl start sdkwork-chat',
-    '  sudo systemctl status sdkwork-chat --no-pager',
-    '  sudo journalctl -u sdkwork-chat -f',
+    '  sudo systemctl start sdkwork-im',
+    '  sudo systemctl status sdkwork-im --no-pager',
+    '  sudo journalctl -u sdkwork-im -f',
     '',
     'Placeholder database values (change-me / sdkwork_ai_prod defaults) are rejected at startup until configured.',
     '',
@@ -846,10 +846,10 @@ function createSystemdUnit() {
     'Restart=on-failure',
     'RestartSec=5',
     // systemd-managed runtime directories (RUNTIME_DIRECTORY_SPEC §4.1).
-    'StateDirectory=sdkwork/chat',
-    'RuntimeDirectory=sdkwork/chat',
-    'LogsDirectory=sdkwork/chat',
-    'CacheDirectory=sdkwork/chat',
+    'StateDirectory=sdkwork/im',
+    'RuntimeDirectory=sdkwork/im',
+    'LogsDirectory=sdkwork/im',
+    'CacheDirectory=sdkwork/im',
     'NoNewPrivileges=true',
     'ProtectSystem=strict',
     'ProtectHome=true',
@@ -901,7 +901,7 @@ function debianInstallPathsForArchivePath(plan, archivePath) {
   if (normalized === INSTALL_MANIFEST_ARCHIVE_PATH) {
     return [DEB_INSTALL_MANIFEST_PATH];
   }
-  if (normalized === 'service/linux/sdkwork-chat.service') {
+  if (normalized === 'service/linux/sdkwork-im.service') {
     return [LINUX_SYSTEMD_UNIT_PATH];
   }
   return [];
@@ -1077,7 +1077,7 @@ async function buildWindowsMsi(plan, fileEntries, { winswPath }) {
   await writeMappedPackageFiles(payloadRoot, fileEntries, (entry) =>
     windowsPayloadPathForArchivePath(plan, entry.relativePath)
   );
-  const wixSourcePath = path.join(buildRoot, 'sdkwork-chat.wxs');
+  const wixSourcePath = path.join(buildRoot, 'sdkwork-im.wxs');
   await writeFile(wixSourcePath, createWixSource(plan, payloadRoot, fileEntries), 'utf8');
   await execFileAsync('wix', [
     'build',
@@ -1098,7 +1098,7 @@ async function buildWindowsMsi(plan, fileEntries, { winswPath }) {
 function windowsPayloadPathForArchivePath(plan, archivePath) {
   const normalized = String(archivePath).replaceAll('\\', '/');
   if (normalized.startsWith('config/')) {
-    return `ProgramData/sdkwork/chat/${normalized.slice('config/'.length)}`;
+    return `ProgramData/sdkwork/im/${normalized.slice('config/'.length)}`;
   }
   if (normalized.startsWith('modules/')) {
     // Embedded modules under ProgramData: catalog materialization writes into
@@ -1106,12 +1106,12 @@ function windowsPayloadPathForArchivePath(plan, archivePath) {
     return `ProgramData/${WINDOWS_MODULE_ROOT}/${normalized.slice('modules/'.length)}`;
   }
   if (normalized === 'INSTALL.md') {
-    return 'ProgramFiles/sdkwork/chat/doc/INSTALL.md';
+    return 'ProgramFiles/sdkwork/im/doc/INSTALL.md';
   }
   if (normalized === INSTALL_MANIFEST_ARCHIVE_PATH) {
     return MSI_INSTALL_MANIFEST_PATH;
   }
-  return `ProgramFiles/sdkwork/chat/${normalized}`;
+  return `ProgramFiles/sdkwork/im/${normalized}`;
 }
 
 function createWixSource(plan, payloadRoot, fileEntries) {
@@ -1121,7 +1121,7 @@ function createWixSource(plan, payloadRoot, fileEntries) {
   // top-level `chat` directory).
   const programFilesTree = new DirectoryNode('PROGRAMFILESSDKWORK', 'sdkwork', 'PROGRAMFILESSDKWORK');
   const programDataTree = new DirectoryNode('COMMONAPPDATASDKWORK', 'sdkwork', 'COMMONAPPDATASDKWORK');
-  const serviceComponentId = stableWixId('cmp', 'sdkwork/chat/service/windows/sdkwork-chat-service.exe');
+  const serviceComponentId = stableWixId('cmp', 'sdkwork/im/service/windows/sdkwork-im-service.exe');
   for (const entry of fileEntries) {
     const payloadPath = windowsPayloadPathForArchivePath(plan, entry.relativePath);
     if (!payloadPath) {
@@ -1228,7 +1228,7 @@ function renderWixDirectory(node, indentLevel) {
     lines.push(`${indent}    <File Id="${file.fileId}" Source="${xmlEscape(file.source)}" KeyPath="yes" />`);
     if (file.serviceInstall) {
       // WinSW.exe implements the SCM protocol and reads the adjacent
-      // sdkwork-chat-service.xml; register the service on install and stop/
+      // sdkwork-im-service.xml; register the service on install and stop/
       // remove it on uninstall (PACKAGING_SPEC §5.5 Windows SCM row).
       lines.push(`${indent}    <ServiceInstall Name="${WINDOWS_SERVICE_NAME}" DisplayName="${WINDOWS_SERVICE_DISPLAY_NAME}" Type="ownProcess" Start="auto" ErrorControl="normal" />`);
       lines.push(`${indent}    <ServiceControl Id="${stableWixId('svc', WINDOWS_SERVICE_NAME)}" Name="${WINDOWS_SERVICE_NAME}" Stop="both" Remove="uninstall" Wait="yes" />`);
@@ -1261,15 +1261,15 @@ function createWinSwXml() {
   // runtime environment is carried inline (WinSW has no env-file support);
   // secrets belong in the referenced secret files, never here.
   const moduleEnv = EMBEDDED_MODULE_WORKSPACES.map((workspace) =>
-    `  <env name="SDKWORK_${workspace.replace('sdkwork-', '').toUpperCase()}_APP_ROOT" value="%ProgramData%\\sdkwork\\chat\\modules\\${workspace}" />`
+    `  <env name="SDKWORK_${workspace.replace('sdkwork-', '').toUpperCase()}_APP_ROOT" value="%ProgramData%\\sdkwork\\im\\modules\\${workspace}" />`
   ).join('\r\n');
   return [
     '<service>',
     `  <id>${WINDOWS_SERVICE_NAME}</id>`,
     `  <name>${WINDOWS_SERVICE_DISPLAY_NAME}</name>`,
     '  <description>SDKWork IM standalone API gateway Windows service wrapper</description>',
-    `  <executable>%ProgramFiles%\\sdkwork\\chat\\bin\\${SERVER_BINARY_BASENAME}.exe</executable>`,
-    '  <logpath>%ProgramData%\\sdkwork\\chat\\Logs</logpath>',
+    `  <executable>%ProgramFiles%\\sdkwork\\im\\bin\\${SERVER_BINARY_BASENAME}.exe</executable>`,
+    '  <logpath>%ProgramData%\\sdkwork\\im\\Logs</logpath>',
     '  <log mode="roll" />',
     '',
     '  <env name="SDKWORK_IM_DEPLOYMENT_PROFILE" value="standalone" />',
@@ -1283,10 +1283,10 @@ function createWinSwXml() {
     '  <env name="SDKWORK_DATABASE_AUTO_MIGRATE" value="true" />',
     '  <env name="SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT" value="2" />',
     '  <env name="SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION" value="true" />',
-    '  <env name="SDKWORK_APP_ROOT" value="%ProgramFiles%\\sdkwork\\chat" />',
-    '  <env name="SDKWORK_IM_APP_ROOT" value="%ProgramFiles%\\sdkwork\\chat" />',
+    '  <env name="SDKWORK_APP_ROOT" value="%ProgramFiles%\\sdkwork\\im" />',
+    '  <env name="SDKWORK_IM_APP_ROOT" value="%ProgramFiles%\\sdkwork\\im" />',
     ...moduleEnv.split('\r\n'),
-    '  <env name="SDKWORK_PAYMENT_CREDENTIAL_MASTER_KEY_FILE" value="%ProgramData%\\sdkwork\\chat\\Data\\secrets\\payment-credential-master.key" />',
+    '  <env name="SDKWORK_PAYMENT_CREDENTIAL_MASTER_KEY_FILE" value="%ProgramData%\\sdkwork\\im\\Data\\secrets\\payment-credential-master.key" />',
     '  <env name="RUST_LOG" value="info" />',
     '',
     '  <onfailure action="restart" delay="10 sec" />',
@@ -1380,7 +1380,7 @@ async function buildMacosPkg(plan, fileEntries) {
     '--scripts',
     scriptsRoot,
     '--identifier',
-    'com.sdkwork.chat.server',
+    'com.sdkwork.im.server',
     '--version',
     windowsPackageVersion(plan.package.version),
     '--install-location',
@@ -1396,19 +1396,19 @@ async function buildMacosPkg(plan, fileEntries) {
 function macosPayloadPathForArchivePath(plan, archivePath) {
   const normalized = String(archivePath).replaceAll('\\', '/');
   if (normalized.startsWith('config/')) {
-    return `Library/Application Support/sdkwork/chat/${normalized.slice('config/'.length)}`;
+    return `Library/Application Support/sdkwork/im/${normalized.slice('config/'.length)}`;
   }
   if (normalized.startsWith('modules/')) {
     return `${MACOS_MODULE_ROOT}/${normalized.slice('modules/'.length)}`;
   }
   if (normalized === 'INSTALL.md') {
-    return 'usr/share/doc/sdkwork/chat/INSTALL.md';
+    return '/usr/share/doc/sdkwork/im/INSTALL.md';
   }
   if (normalized === INSTALL_MANIFEST_ARCHIVE_PATH) {
-    return 'usr/share/sdkwork/chat/install-manifest.json';
+    return 'usr/share/sdkwork/im/install-manifest.json';
   }
   if (normalized.startsWith('bin/') || normalized.startsWith('web/') || normalized === APP_CONFIG_ARCHIVE_PATH) {
-    return `usr/lib/sdkwork/chat/${normalized}`;
+    return `usr/lib/sdkwork/im/${normalized}`;
   }
   return null;
 }
@@ -1430,7 +1430,7 @@ function createMacosPostinstall(plan) {
     '',
     'Before first start:',
     `  sudo editor "${MACOS_SERVICE_ROOT}/server.env"`,
-    '  sudo launchctl load /Library/LaunchDaemons/com.sdkwork.chat.plist',
+    '  sudo launchctl load /Library/LaunchDaemons/com.sdkwork.im.plist',
     '',
     'EOF',
     'exit 0',
@@ -1488,7 +1488,7 @@ function createLinuxNativeInstallLayout(packageItem) {
     },
     service: {
       manager: 'systemd',
-      name: 'sdkwork-chat.service',
+      name: 'sdkwork-im.service',
       unitPath: LINUX_SYSTEMD_UNIT_PATH,
       enabledOnInstall: true,
       startedOnInstall: false,
@@ -1514,9 +1514,9 @@ function createLinuxNativeInstallLayout(packageItem) {
         `sudo editor ${LINUX_SERVICE_ENV_FILE}`,
         `sudo editor ${LINUX_SERVICE_DATABASE_SECRET_FILE}`,
       ],
-      start: 'sudo systemctl start sdkwork-chat',
-      status: 'sudo systemctl status sdkwork-chat --no-pager',
-      logs: 'sudo journalctl -u sdkwork-chat -f',
+      start: 'sudo systemctl start sdkwork-im',
+      status: 'sudo systemctl status sdkwork-im --no-pager',
+      logs: 'sudo journalctl -u sdkwork-im -f',
     },
   });
 }
@@ -1525,22 +1525,22 @@ function createWindowsNativeInstallLayout(packageItem) {
   const binaryName = packageItem.binaryName;
   return createBaseNativeInstallLayout(packageItem, {
     format: 'msi',
-    installRoot: '%ProgramFiles%/sdkwork/chat',
+    installRoot: '%ProgramFiles%/sdkwork/im',
     files: {
-      binary: `%ProgramFiles%\\sdkwork\\chat\\bin\\${binaryName}`,
-      web: '%ProgramFiles%\\sdkwork\\chat\\web',
-      documentation: '%ProgramFiles%\\sdkwork\\chat\\doc\\INSTALL.md',
-      installManifest: '%ProgramFiles%\\sdkwork\\chat\\install-manifest.json',
-      appManifest: '%ProgramFiles%\\sdkwork\\chat\\sdkwork.app.config.json',
-      configDir: '%ProgramData%\\sdkwork\\chat',
-      serviceEnvironment: '%ProgramData%\\sdkwork\\chat\\server.env',
-      configTemplates: '%ProgramData%\\sdkwork\\chat\\*.example',
-      serviceWrapper: `%ProgramFiles%\\sdkwork\\chat\\service\\windows\\${WINDOWS_SERVICE_NAME}-service.exe`,
-      serviceConfig: `%ProgramFiles%\\sdkwork\\chat\\service\\windows\\${WINDOWS_SERVICE_NAME}-service.xml`,
-      dataDirectory: '%ProgramData%\\sdkwork\\chat\\Data',
-      logDirectory: '%ProgramData%\\sdkwork\\chat\\Logs',
-      modules: '%ProgramData%\\sdkwork\\chat\\modules',
-      paymentMasterKey: '%ProgramData%\\sdkwork\\chat\\Data\\secrets\\payment-credential-master.key',
+      binary: `%ProgramFiles%\\sdkwork\\im\\bin\\${binaryName}`,
+      web: '%ProgramFiles%\\sdkwork\\im\\web',
+      documentation: '%ProgramFiles%\\sdkwork\\im\\doc\\INSTALL.md',
+      installManifest: '%ProgramFiles%\\sdkwork\\im\\install-manifest.json',
+      appManifest: '%ProgramFiles%\\sdkwork\\im\\sdkwork.app.config.json',
+      configDir: '%ProgramData%\\sdkwork\\im',
+      serviceEnvironment: '%ProgramData%\\sdkwork\\im\\server.env',
+      configTemplates: '%ProgramData%\\sdkwork\\im\\*.example',
+      serviceWrapper: `%ProgramFiles%\\sdkwork\\im\\service\\windows\\${WINDOWS_SERVICE_NAME}-service.exe`,
+      serviceConfig: `%ProgramFiles%\\sdkwork\\im\\service\\windows\\${WINDOWS_SERVICE_NAME}-service.xml`,
+      dataDirectory: '%ProgramData%\\sdkwork\\im\\Data',
+      logDirectory: '%ProgramData%\\sdkwork\\im\\Logs',
+      modules: '%ProgramData%\\sdkwork\\im\\modules',
+      paymentMasterKey: '%ProgramData%\\sdkwork\\im\\Data\\secrets\\payment-credential-master.key',
     },
     service: {
       manager: 'windows-service',
@@ -1551,9 +1551,9 @@ function createWindowsNativeInstallLayout(packageItem) {
     },
     permissions: [],
     commands: {
-      start: 'sc start sdkwork-chat',
-      status: 'sc query sdkwork-chat',
-      logs: 'Get-Content -Tail 100 "$env:ProgramData\\sdkwork\\chat\\Logs\\*.log" -Wait',
+      start: 'sc start sdkwork-im',
+      status: 'sc query sdkwork-im',
+      logs: 'Get-Content -Tail 100 "$env:ProgramData\\sdkwork\\im\\Logs\\*.log" -Wait',
     },
   });
 }
@@ -1566,8 +1566,8 @@ function createMacosNativeInstallLayout(packageItem) {
     files: {
       binary: `${MACOS_INSTALL_ROOT}/bin/${binaryName}`,
       web: `${MACOS_INSTALL_ROOT}/web`,
-      documentation: '/usr/share/doc/sdkwork/chat/INSTALL.md',
-      installManifest: '/usr/share/sdkwork/chat/install-manifest.json',
+      documentation: '//usr/share/doc/sdkwork/im/INSTALL.md',
+      installManifest: '/usr/share/sdkwork/im/install-manifest.json',
       appManifest: `${MACOS_INSTALL_ROOT}/${APP_CONFIG_ARCHIVE_PATH}`,
       configDir: MACOS_SERVICE_ROOT,
       launchDaemon: MACOS_LAUNCH_DAEMON_PATH,
@@ -1576,7 +1576,7 @@ function createMacosNativeInstallLayout(packageItem) {
     },
     service: {
       manager: 'launchd',
-      name: 'com.sdkwork.chat',
+      name: 'com.sdkwork.im',
       unitPath: MACOS_LAUNCH_DAEMON_PATH,
       enabledOnInstall: false,
       startedOnInstall: false,

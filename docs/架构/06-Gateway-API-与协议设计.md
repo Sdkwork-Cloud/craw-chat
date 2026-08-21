@@ -171,7 +171,7 @@
 - `GET /backend/v3/api/ops/cluster`
 - `GET /backend/v3/api/ops/lag`
 - `GET /backend/v3/api/ops/diagnostics`
-- 当前最小实现中，消息提交、通知请求、自动化执行都会留下审计锚点；运维面暴露单节点 `standalone.split-services.development` 的 cluster / lag / diagnostic 视图：
+- 当前最小实现中，消息提交、通知请求、自动化执行都会留下审计锚点；运维面暴露单节点 `standalone.development` 的 cluster / lag / diagnostic 视图：
 
 ### 3.10 认证上下文约定
 

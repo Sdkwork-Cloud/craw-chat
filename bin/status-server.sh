@@ -10,7 +10,7 @@ EOF
 }
 
 instance_name="default"
-config_dir="/etc/sdkwork/chat"
+config_dir="/etc/sdkwork/im"
 release_gate_path=""
 output_format="text"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -40,9 +40,9 @@ json_array_strings() {
 server_config_dir_for_instance() {
   local name="$1"
   if [[ "$name" == "default" ]]; then
-    printf '/etc/sdkwork/chat\n'
+    printf '/etc/sdkwork/im\n'
   else
-    printf '/etc/sdkwork/chat/instances/%s\n' "$name"
+    printf '/etc/sdkwork/im/instances/%s\n' "$name"
   fi
 }
 

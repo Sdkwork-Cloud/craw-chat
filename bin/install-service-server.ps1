@@ -1,8 +1,8 @@
 param(
     [string]$InstanceName = "default",
-    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "chat")),
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
-    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
+    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "im")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")),
+    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Logs")),
     [ValidateSet("auto", "systemd", "launchd", "windows-service")]
     [string]$ServiceMode = "auto",
     [switch]$Help
@@ -25,7 +25,7 @@ function Get-ServerPathForInstance {
     return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
 }
 
-$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
     $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
 }
@@ -68,9 +68,9 @@ $stderrLogPath = Join-Path $normalizedLogDir "sdkwork-api-im-standalone-gateway.
 if (Test-Path $systemdTemplate) {
     $unitContent = Get-Content -Path $systemdTemplate -Raw
     $rendered = $unitContent.
-        Replace('WorkingDirectory=/opt/sdkwork/chat', "WorkingDirectory=$normalizedInstallRoot").
-        Replace('EnvironmentFile=/etc/sdkwork/chat/server.env', "EnvironmentFile=$environmentFile").
-        Replace('ExecStart=/opt/sdkwork/chat/bin/sdkwork-api-im-standalone-gateway', "ExecStart=$serviceBinaryPath")
+        Replace('WorkingDirectory=/opt/sdkwork/im', "WorkingDirectory=$normalizedInstallRoot").
+        Replace('EnvironmentFile=/etc/sdkwork/im/server.env', "EnvironmentFile=$environmentFile").
+        Replace('ExecStart=/opt/sdkwork/im/bin/sdkwork-api-im-standalone-gateway', "ExecStart=$serviceBinaryPath")
     $rendered | Set-Content -Path $generatedUnitPath -Encoding utf8
 }
 

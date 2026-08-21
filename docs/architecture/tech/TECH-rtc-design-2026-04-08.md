@@ -64,7 +64,7 @@ RTC 录制播放面使用对象存储域自己的 binding：
 - `storageProvider`
 - `playbackUrl`
 
-standalone 与 standalone.split-services.development 必须保持同名镜像路由。
+standalone 与 standalone.development 必须保持同名镜像路由。
 
 ## 约束
 

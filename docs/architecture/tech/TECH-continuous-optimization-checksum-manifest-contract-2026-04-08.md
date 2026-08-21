@@ -10,22 +10,22 @@
   - 每个 slot 的 `checksumSha256`
   - evidence root 下的汇总校验和文件
   之间临时决定谁是权威入口。
-- 当前环境依然没有真实 `standalone.split-services.development` 发布后执行窗口，因此本轮继续不伪造真实 digest，只把 bundle 级 checksum manifest 路径与格式合同冻结下来。
+- 当前环境依然没有真实 `standalone.development` 发布后执行窗口，因此本轮继续不伪造真实 digest，只把 bundle 级 checksum manifest 路径与格式合同冻结下来。
 
 ## 2. 实际落地
 
 ### 2.1 evidence index 顶层已新增 `checksumManifestPath`
 
 - 更新：`artifacts/releases/schemas/post-release-evidence-index.schema.json`
-- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.split-services.development-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/standalone.development-post-release-evidence-index.json`
 - 当前 contract 已固定：
   - `checksumManifestPath`
-  - 路径值：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.split-services.development/checksum-manifest.txt`
+  - 路径值：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.development/checksum-manifest.txt`
 - 这意味着未来真实归档时，不再需要临时决定 bundle 级 checksum 清单放到哪里。
 
 ### 2.2 evidence root 已新增 checksum manifest 占位文件
 
-- 新增：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.split-services.development/checksum-manifest.txt`
+- 新增：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.development/checksum-manifest.txt`
 - 当前占位文件已明确：
   - `template_only_pending_collection`
   - `path owner: checksumManifestPath`
@@ -35,7 +35,7 @@
 ### 2.3 operator / release 文档已同步 checksum manifest 口径
 
 - 更新：`artifacts/releases/README.md`
-- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.split-services.development/README.md`
+- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/standalone.development/README.md`
 - 更新：`docs/部署/性能与灾备演练场景.md`
 - 更新：`docs/部署/性能与灾备演练场景.md`
 - 当前文档已明确：

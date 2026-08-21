@@ -7,7 +7,7 @@
 
 - 前端产物：`apps/sdkwork-im-pc/dist`
 - 后端二进制：`target/release/sdkwork-im-server`
-- 运行配置：`/etc/sdkwork/chat/chat.toml` 与 `/etc/sdkwork/chat/server.env`
+- 运行配置：`/etc/sdkwork/im/config.toml` 与 `/etc/sdkwork/im/server.env`
 
 不要把 `pnpm dev:server` 用作生产启动命令。`dev:server` 是本地开发栈，会启动开发用的网关、本地业务 host、调试构建和本地默认端口。生产源码部署使用 `build:server:source` 与 `start:server:source`。
 
@@ -25,10 +25,10 @@
 推荐源码目录：
 
 ```sh
-sudo mkdir -p /opt/sdkwork/chat
-sudo chown -R "$USER:$USER" /opt/sdkwork/chat
-git clone <your-sdkwork-im-repo-url> /opt/sdkwork/chat
-cd /opt/sdkwork/chat
+sudo mkdir -p /opt/sdkwork/im
+sudo chown -R "$USER:$USER" /opt/sdkwork/im
+git clone <your-sdkwork-im-repo-url> /opt/sdkwork/im
+cd /opt/sdkwork/im
 corepack enable
 corepack prepare pnpm@10.0.0 --activate
 ```
@@ -38,13 +38,13 @@ corepack prepare pnpm@10.0.0 --activate
 生产配置放在服务器本机，不提交到 Git。
 
 ```text
-/etc/sdkwork/chat/chat.toml
-/etc/sdkwork/chat/server.env
+/etc/sdkwork/im/config.toml
+/etc/sdkwork/im/server.env
 /etc/sdkwork/database/database.secret
-/etc/sdkwork/chat/redis.secret
+/etc/sdkwork/im/redis.secret
 ```
 
-可以从 `deployments/templates/server.env.example` 复制一份到 `/etc/sdkwork/chat/server.env` 后修改。
+可以从 `deployments/templates/server.env.example` 复制一份到 `/etc/sdkwork/im/server.env` 后修改。
 
 源码部署建议至少设置这些字段：
 
@@ -53,16 +53,16 @@ SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
 SDKWORK_IM_RUNTIME_TARGET=server
 SDKWORK_IM_ENVIRONMENT=production
 SDKWORK_IM_CONFIG_PROFILE=prod
-SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
+SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/im/config.toml
 SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080
 SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com
 SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com
 SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com
 
 SDKWORK_IM_BROWSER_ORIGINS=https://im.sdkwork.com
-SDKWORK_IM_ADMIN_SITE_DIR=/opt/sdkwork/chat/apps/sdkwork-im-pc/dist
-SDKWORK_IM_PORTAL_SITE_DIR=/opt/sdkwork/chat/apps/sdkwork-im-pc/dist
-SDKWORK_IM_SERVER_BINARY_PATH=/opt/sdkwork/chat/target/release/sdkwork-im-server
+SDKWORK_IM_ADMIN_SITE_DIR=/opt/sdkwork/im/apps/sdkwork-im-pc/dist
+SDKWORK_IM_PORTAL_SITE_DIR=/opt/sdkwork/im/apps/sdkwork-im-pc/dist
+SDKWORK_IM_SERVER_BINARY_PATH=/opt/sdkwork/im/target/release/sdkwork-im-server
 
 SDKWORK_DATABASE_ENGINE=postgresql
 SDKWORK_DATABASE_HOST=db.example.com
@@ -78,7 +78,7 @@ SDKWORK_IM_REDIS_ENABLED=true
 SDKWORK_IM_REDIS_HOST=redis.example.com
 SDKWORK_IM_REDIS_PORT=6379
 SDKWORK_IM_REDIS_DATABASE=0
-SDKWORK_IM_REDIS_PASSWORD_FILE=/etc/sdkwork/chat/redis.secret
+SDKWORK_IM_REDIS_PASSWORD_FILE=/etc/sdkwork/im/redis.secret
 SDKWORK_IM_REDIS_KEY_PREFIX=chat
 ```
 
@@ -89,15 +89,15 @@ SDKWORK_IM_REDIS_KEY_PREFIX=chat
 先查看计划：
 
 ```sh
-cd /opt/sdkwork/chat
-pnpm run deploy:source:plan -- --env-file /etc/sdkwork/chat/server.env --config-dir /etc/sdkwork/chat
+cd /opt/sdkwork/im
+pnpm run deploy:source:plan -- --env-file /etc/sdkwork/im/server.env --config-dir /etc/sdkwork/im
 ```
 
 执行源码构建：
 
 ```sh
-cd /opt/sdkwork/chat
-pnpm run build:server:source -- --env-file /etc/sdkwork/chat/server.env --config-dir /etc/sdkwork/chat
+cd /opt/sdkwork/im
+pnpm run build:server:source -- --env-file /etc/sdkwork/im/server.env --config-dir /etc/sdkwork/im
 ```
 
 这条命令会复用现有生产构建流程（`pnpm run release:build:prod -- --target server`），不会调用 `release:package`，不会生成安装包。
@@ -107,15 +107,15 @@ pnpm run build:server:source -- --env-file /etc/sdkwork/chat/server.env --config
 前台启动，适合 systemd、Docker entrypoint 或手动验证：
 
 ```sh
-cd /opt/sdkwork/chat
-pnpm run start:server:source -- --env-file /etc/sdkwork/chat/server.env --config-dir /etc/sdkwork/chat
+cd /opt/sdkwork/im
+pnpm run start:server:source -- --env-file /etc/sdkwork/im/server.env --config-dir /etc/sdkwork/im
 ```
 
 后台启动：
 
 ```sh
-cd /opt/sdkwork/chat
-pnpm run start:server:source -- --env-file /etc/sdkwork/chat/server.env --config-dir /etc/sdkwork/chat --background
+cd /opt/sdkwork/im
+pnpm run start:server:source -- --env-file /etc/sdkwork/im/server.env --config-dir /etc/sdkwork/im --background
 ```
 
 `start:server:source` 不直接运行 `cargo run`。它会复用 `bin/start-server.sh` 或 Windows 上的 `bin/start-server.ps1`，并默认指向源码目录中的 release 二进制。

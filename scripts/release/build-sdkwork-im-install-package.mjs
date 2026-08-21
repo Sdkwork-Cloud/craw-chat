@@ -252,7 +252,7 @@ function validateSdkworkImInstallPackageBuildPlan(buildPlan) {
   if (buildPlan.package.profile === 'server') {
     for (const requiredPath of [
       `bin/${buildPlan.package.binaryName}`,
-      'config/chat.toml.example',
+      'config/config.toml.example',
       'config/server.env.example',
       'config/postgresql.yaml.example',
       'INSTALL.md',

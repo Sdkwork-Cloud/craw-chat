@@ -6,7 +6,7 @@
 - 当前子任务：`CP10-4`
 - 前置状态：
   - `CP10-1` 已冻结统一命令面
-  - `CP10-2` 已冻结 `standalone.split-services.development` / `standalone.split-services.development` profile 与配置模板合同
+  - `CP10-2` 已冻结 `standalone.development` / `standalone.development` profile 与配置模板合同
   - `CP10-3` 已完成 Docker/public smoke 的 signed bearer 闭环
   - 当前真实缺口收敛到 runtime ops：
     - `inspect / repair / list / archive / prune / preview / restore` 必须读取 topology 源配置与部署路径合同
@@ -15,7 +15,7 @@
 
 ## 本轮为什么做这个增量
 - `docs/step/10-部署脚本与多环境发布治理.md` 明确要求 `CP10-4` 证明“恢复、修复、检查脚本已经纳入标准运维闭环”。
-- `CP10-2` 已经把 `standalone.split-services.development` 冻结为真实 profile 名称，如果 runtime ops 仍只认 `standalone.split-services.development`，则 profile 体系仍然是半成品。
+- `CP10-2` 已经把 `standalone.development` 冻结为真实 profile 名称，如果 runtime ops 仍只认 `standalone.development`，则 profile 体系仍然是半成品。
 - 因此本轮最优动作是补齐 runtime ops profile-aware 合同，而不是引入新的 runtime 拓扑。
 
 ## 本轮实际完成
@@ -29,7 +29,7 @@
   - `prune-runtime-archives-local.ps1`
   - `preview-runtime-restore-local.ps1`
   - `restore-runtime-local.ps1`
-  - 统一新增 `-ProfileName <standalone.split-services.development|standalone.split-services.development>`
+  - 统一新增 `-ProfileName <standalone.development|standalone.development>`
 - Bash：
   - `inspect-runtime-local.sh`
   - `repair-runtime-local.sh`
@@ -38,11 +38,11 @@
   - `prune-runtime-archives-local.sh`
   - `preview-runtime-restore-local.sh`
   - `restore-runtime-local.sh`
-  - 统一新增 `--profile <standalone.split-services.development|standalone.split-services.development>`
+  - 统一新增 `--profile <standalone.development|standalone.development>`
 - CMD：
   - 继续通过 `_cmd-forward-powershell.cmd` 把 `--profile` 归一化为 `-ProfileName`
 
-### 2. `standalone.split-services.development` 运维配置解析已进入显式合同
+### 2. `standalone.development` 运维配置解析已进入显式合同
 - 新增共享 helper：
   - `bin/_runtime-profile-common.ps1`
   - `bin/_runtime-profile-common.sh`
@@ -51,7 +51,7 @@
   2. `standalone.development` 读取 `etc/topology/standalone.development.env`
   3. 配置缺失时 fail closed，不生成源码树兼容配置
   4. 动态状态解析到源码树外、仓库标识隔离的 OS/CI 临时目录
-- 该回退与 `docs/部署/多环境Profile与配置模板.md` 当前冻结的“`standalone.split-services.development` 仍复用 `standalone.split-services.development` 运行合同”一致
+- 该回退与 `docs/部署/多环境Profile与配置模板.md` 当前冻结的“`standalone.development` 仍复用 `standalone.development` 运行合同”一致
 
 ### 3. PowerShell runtime ops 保持单文件可执行回归模型
 - 共享 helper 存在时优先复用
@@ -61,7 +61,7 @@
 ### 4. 文档与回归门禁已追平
 - `docs/部署/快速启动脚本.md`
   - 新增 runtime ops profile 选择说明
-  - 明确 `standalone.split-services.development` 的 config-first / runtime-contract fallback 口径
+  - 明确 `standalone.development` 的 config-first / runtime-contract fallback 口径
 - `crates/sdkwork-api-im-standalone-gateway/tests/deployment_profile_test.rs`
   - `test_runtime_operation_scripts_expose_profile_selection_contract`
   - `test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_requested`
@@ -98,7 +98,7 @@
 - `CP10-4`：闭环
 - 已兑现：
   - runtime ops 已纳入统一 profile-aware 运维合同
-  - `standalone.split-services.development` 与 `standalone.split-services.development` 的运维入口不再分叉
+  - `standalone.development` 与 `standalone.development` 的运维入口不再分叉
   - PowerShell / CMD / Bash 的 runtime ops 语义已对齐到同一组参数与 fallback 规则
 - 当前仍未兑现：
   - `Step 10` 的整步审计与架构回写

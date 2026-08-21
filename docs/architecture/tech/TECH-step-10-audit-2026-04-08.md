@@ -21,12 +21,12 @@
 
 ## 正向结果
 - `CP10-1` 让 operator 入口从零散脚本收口为标准命令面。
-- `CP10-2` 把 `standalone.split-services.development` / `standalone.split-services.development` 从名称约定推进成 compose + template + deploy 入口合同。
+- `CP10-2` 把 `standalone.development` / `standalone.development` 从名称约定推进成 compose + template + deploy 入口合同。
 - `CP10-3` 把 smoke 从“看起来能跑”推进成 signed public smoke 的真实执行证据。
 - `CP10-4` 把 inspect / repair / backup / restore 也纳入 profile-aware 运维闭环，消除了 deploy profile 与 runtime ops profile 之间的断层。
 
 ## 剩余风险
-- `standalone.split-services.development` 当前仍不是独立运行拓扑；这是架构冻结结果，不是当前缺陷。
+- `standalone.development` 当前仍不是独立运行拓扑；这是架构冻结结果，不是当前缺陷。
 - 当前 Windows 宿主上的 standalone Git Bash `--help` 仍会命中 `couldn't create signal pipe, Win32 error 5`，因此 shell 帮助命令不适合作为唯一放行证据。
 - 但该环境限制不影响 `Step 10` 判断，因为更强的 `deployment_profile_test` 已 fresh 覆盖：
   - Bash smoke 实际执行

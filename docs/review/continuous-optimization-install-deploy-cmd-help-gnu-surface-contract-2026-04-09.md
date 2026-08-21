@@ -11,7 +11,7 @@
 - `cmd /c .\bin\retired-lifecycle-install.cmd --help` only showed:
   - `Usage: powershell -ExecutionPolicy Bypass -File (retired lifecycle script) [-Release] [-BindAddress <host:port>]`
 - `cmd /c .\bin\retired-lifecycle-deploy.cmd --help` only showed:
-  - `Usage: powershell -ExecutionPolicy Bypass -File pnpm dev [-ProfileName <standalone.split-services.development|standalone.split-services.development>] [-SkipSmoke] [-SmokeBaseUrl <url>]`
+  - `Usage: powershell -ExecutionPolicy Bypass -File pnpm dev [-ProfileName <standalone.development|standalone.development>] [-SkipSmoke] [-SmokeBaseUrl <url>]`
 - That left the same drift already closed for `retired-lifecycle-start.cmd` and `retired-lifecycle-status.cmd`:
   - docs taught `--release`, `--bind-addr`, `--profile`, `--skip-smoke`, `--smoke-base-url`
   - local Windows help still surfaced only PowerShell syntax

@@ -20,7 +20,7 @@
 
 ### Pre-Release Tier
 
-- profile: `standalone.split-services.development`
+- profile: `standalone.development`
 - state: `template_only_pending_execution`
 - gateTemplate: `tools/perf/step-11-pre-release-tier-gate.json`
 - artifactRoot: `artifacts/perf/step-11/pre-release`

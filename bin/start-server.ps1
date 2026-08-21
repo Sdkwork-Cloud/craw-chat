@@ -1,9 +1,9 @@
 param(
     [string]$InstanceName = "default",
-    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "chat")),
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
-    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
-    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Run")),
+    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "im")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")),
+    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Logs")),
+    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im", "Run")),
     [string]$EnvFile,
     [string]$BinaryPath,
     [switch]$Release,
@@ -30,7 +30,7 @@ function Get-ServerPathForInstance {
     return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
 }
 
-$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "im")
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
     $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
 }
@@ -215,7 +215,7 @@ $serverEnvPath = Resolve-ServerEnvFilePath -ExplicitEnvFile $EnvFile -ResolvedCo
 Import-ServerEnvFile -EnvFilePath $serverEnvPath
 $standardConfigFile = Get-FirstEnvValue @("SDKWORK_IM_CONFIG_FILE")
 if ([string]::IsNullOrWhiteSpace($standardConfigFile)) {
-    $serverYamlPath = Join-Path $ConfigDir "chat.toml"
+    $serverYamlPath = Join-Path $ConfigDir "config.toml"
     if (-not (Test-Path $serverYamlPath)) {
         $serverYamlPath = Join-Path $ConfigDir "server.yaml"
     }
@@ -224,7 +224,7 @@ else {
     $serverYamlPath = $standardConfigFile
 }
 if (-not (Test-Path $serverYamlPath)) {
-    $chatTomlPath = Join-Path $ConfigDir "chat.toml"
+    $chatTomlPath = Join-Path $ConfigDir "config.toml"
     if (Test-Path $chatTomlPath) {
         $serverYamlPath = $chatTomlPath
     }

@@ -50,7 +50,7 @@ plus checked-in SDK workspaces built from those services:
   families used by product, app-business, backend/operator, admin, governance, and provider-runtime
   integrations.
 
-The default development profile is `standalone.split-services.development` (`pnpm dev`). Topology
+The default development profile is `standalone.development` (`pnpm dev`). Topology
 authority lives in `specs/topology.spec.json` and `etc/topology/*.env`.
 
 For most new integrations, the fastest reading order is:

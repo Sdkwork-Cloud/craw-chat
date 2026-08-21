@@ -13,7 +13,7 @@
 | [docs/sites/getting-started/](../sites/getting-started/) | 快速开始与开发命令 |
 | [docs/部署/README.md](../部署/README.md) | 部署与验证索引 |
 
-默认开发 profile：`standalone.split-services.development` → `pnpm dev`
+默认开发 profile：`standalone.development` → `pnpm dev`
 
 ## 本目录定位
 

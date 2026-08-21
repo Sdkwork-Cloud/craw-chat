@@ -9,7 +9,7 @@
 
 **Architecture:** 默认入口继续经由统一 `PrincipalProfileProvider` port，不新增旁路。external 形态以外部目录 JSON 作为最小真实目录源，保证主链路元数据、bootstrap member、message actor 行为与显式注入测试一致。
 
-**Tech Stack:** Rust, Axum, serde, standalone.split-services.development runtime
+**Tech Stack:** Rust, Axum, serde, standalone.development runtime
 
 ---
 

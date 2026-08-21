@@ -18,25 +18,25 @@
 Linux server/service/container 使用：
 
 ```text
-/opt/sdkwork/chat                 # archive install root
-/etc/sdkwork/chat                 # config and secret root
-/var/lib/sdkwork/chat             # durable data
-/var/log/sdkwork/chat             # file logs
-/run/sdkwork/chat                 # runtime state
+/opt/sdkwork/im                 # archive install root
+/etc/sdkwork/im                 # config and secret root
+/var/lib/sdkwork/im             # durable data
+/var/log/sdkwork/im             # file logs
+/run/sdkwork/im                 # runtime state
 ```
 
 核心配置文件：
 
 ```text
-/etc/sdkwork/chat/
-  chat.toml
+/etc/sdkwork/im/
+  config.toml
   server.env
   postgresql.yaml
   database.secret
   redis.secret
 ```
 
-Windows Service 使用 `%ProgramFiles%/sdkwork/chat` 与 `%ProgramData%/sdkwork/chat`。macOS service 使用 `/usr/lib/sdkwork/chat`、`/Library/Application Support/sdkwork/chat`、`/Library/Logs/sdkwork/chat`。
+Windows Service 使用 `%ProgramFiles%/sdkwork/im` 与 `%ProgramData%/sdkwork/im`。macOS service 使用 `/usr/lib/sdkwork/im`、`/Library/Application Support/sdkwork/im`、`/Library/Logs/sdkwork/im`。
 
 ## 2. 数据库账号
 
@@ -71,9 +71,9 @@ ALTER ROLE sdkwork_ai_prod SET search_path TO sdkwork_ai_prod, public;
 
 如果数据库和 schema 已由平台提供，只需确认应用账号具备读写与迁移权限。
 
-## 4. chat.toml
+## 4. config.toml
 
-`chat.toml` 是 server 运行时主配置入口：
+`config.toml` 是 server 运行时主配置入口：
 
 ```toml
 [runtime]
@@ -93,12 +93,12 @@ websocket_base_url = "wss://chat.example.com"
 docs_base_url = "https://chat.example.com/sdkwork/chat/docs"
 
 [paths]
-config_directory = "/etc/sdkwork/chat"
-config_file = "/etc/sdkwork/chat/chat.toml"
-data_directory = "/var/lib/sdkwork/chat"
-log_directory = "/var/log/sdkwork/chat"
-cache_directory = "/var/cache/sdkwork/chat"
-runtime_directory = "/run/sdkwork/chat"
+config_directory = "/etc/sdkwork/im"
+config_file = "/etc/sdkwork/im/config.toml"
+data_directory = "/var/lib/sdkwork/im"
+log_directory = "/var/log/sdkwork/im"
+cache_directory = "/var/cache/sdkwork/im"
+runtime_directory = "/run/sdkwork/im"
 
 [database]
 engine = "postgresql"
@@ -116,7 +116,7 @@ enabled = true
 host = "redis.internal.example.com"
 port = 6379
 database = 0
-password_file = "/etc/sdkwork/chat/redis.secret"
+password_file = "/etc/sdkwork/im/redis.secret"
 key_prefix = "chat"
 tls = false
 max_connections = 16
@@ -129,10 +129,10 @@ max_connections = 16
 ```env
 SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
 SDKWORK_IM_RUNTIME_TARGET=server
-SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
-SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat
-SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat
-SDKWORK_IM_RUN_DIR=/run/sdkwork/chat
+SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/im/config.toml
+SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/im
+SDKWORK_IM_LOG_DIR=/var/log/sdkwork/im
+SDKWORK_IM_RUN_DIR=/run/sdkwork/im
 SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080
 SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com
 SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com
@@ -195,14 +195,14 @@ sudo chown root:sdkwork /etc/sdkwork/database/database.secret
 sudo chmod 0640 /etc/sdkwork/database/database.secret
 ```
 
-Windows Service 场景需确保服务运行账号对 `%ProgramData%/sdkwork/chat/database.secret` 有读取权限，且该文件未进入安装包或 Git。
+Windows Service 场景需确保服务运行账号对 `%ProgramData%/sdkwork/im/database.secret` 有读取权限，且该文件未进入安装包或 Git。
 
 ## 8. 验证配置
 
 Windows Service 示例：
 
 ```powershell
-Test-Path "$env:ProgramData\sdkwork\chat\chat.toml"
+Test-Path "$env:ProgramData\sdkwork\chat\config.toml"
 Test-Path "$env:ProgramData\sdkwork\chat\server.env"
 Test-Path "$env:ProgramData\sdkwork\chat\postgresql.yaml"
 Test-Path "$env:ProgramData\sdkwork\chat\database.secret"
@@ -211,9 +211,9 @@ Test-Path "$env:ProgramData\sdkwork\chat\database.secret"
 Linux 示例：
 
 ```bash
-test -f /etc/sdkwork/chat/chat.toml
-test -f /etc/sdkwork/chat/server.env
-test -f /etc/sdkwork/chat/postgresql.yaml
+test -f /etc/sdkwork/im/config.toml
+test -f /etc/sdkwork/im/server.env
+test -f /etc/sdkwork/im/postgresql.yaml
 test -f /etc/sdkwork/database/database.secret
 ```
 
@@ -237,9 +237,9 @@ bash bin/install-service-server.sh --instance default
 bash bin/start-server.sh --instance default --release
 ```
 
-Windows Service 使用 `install-service-server.ps1` 安装并注册 `SdkworkImServer`。后台启动通过 systemd、launchd 或 Windows Service 读取配置入口 `sdkwork-im-server --config <config-root>/chat.toml`。
+Windows Service 使用 `install-service-server.ps1` 安装并注册 `SdkworkImServer`。后台启动通过 systemd、launchd 或 Windows Service 读取配置入口 `sdkwork-im-server --config <config-root>/config.toml`。
 
-线上不要使用本地开发命令。`pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop` 仅用于开发编排；线上 PostgreSQL 运行必须使用服务端配置根 `/etc/sdkwork/chat/chat.toml`。
+线上不要使用本地开发命令。`pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop` 仅用于开发编排；线上 PostgreSQL 运行必须使用服务端配置根 `/etc/sdkwork/im/config.toml`。
 
 ## 10. 安全与运维要点
 
