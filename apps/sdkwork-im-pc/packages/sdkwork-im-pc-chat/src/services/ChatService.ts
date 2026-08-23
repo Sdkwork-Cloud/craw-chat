@@ -62,6 +62,7 @@ import {
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core/sdk/session';
 import type { Chat, ChatAgentAssignment, Message } from '@sdkwork/im-pc-types';
+import { uuid } from '@sdkwork/utils/id';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
 import { contactService } from './ContactService';
 import { createDefaultAvatar } from './DefaultAvatarService';
@@ -1475,11 +1476,7 @@ function buildFallbackConversationName(conversationType: Chat['type']): string {
 }
 
 function createChatClientRequestKey(): string {
-  const clientGeneratedId =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `pc-create-chat-${clientGeneratedId}`;
+  return `pc-create-chat-${uuid()}`;
 }
 
 function buildLastMessage(entry: ConversationInboxEntry, timestamp: number): Message | undefined {

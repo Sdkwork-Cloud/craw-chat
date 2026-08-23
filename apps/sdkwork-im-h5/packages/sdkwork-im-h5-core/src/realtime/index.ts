@@ -10,6 +10,7 @@ import type {
   ImSubscription,
 } from '../sdk';
 import { getImSdkClient } from '../sdk';
+import { uuid } from '@sdkwork/utils/id';
 
 export type ChatLiveConnectionStatus = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
@@ -178,9 +179,7 @@ function resolveDeviceId(): string | undefined {
       cachedDeviceId = existing;
       return cachedDeviceId;
     }
-    const generated = typeof globalThis.crypto?.randomUUID === 'function'
-      ? globalThis.crypto.randomUUID()
-      : `h5-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const generated = uuid();
     storage.setItem(IM_H5_DEVICE_ID_STORAGE_KEY, generated);
     cachedDeviceId = generated;
     return cachedDeviceId;

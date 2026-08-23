@@ -48,15 +48,15 @@ assert(
 );
 
 const pcViteConfig = read('apps/sdkwork-im-pc/vite.config.ts');
-assert.match(
+assert.doesNotMatch(
   pcViteConfig,
-  /find:\s*\/\^@sdkwork\\\/utils\\\/\(\.\+\)\$\/,\s*replacement:\s*`\$\{sdkworkUtilsSourceRoot\}\/\$1`/u,
-  'apps/sdkwork-im-pc/vite.config.ts must alias @sdkwork/utils/* subpath imports to sdkwork-utils TypeScript source modules',
+  /sdkworkUtilsSourceRoot|sdkworkUtilsEntry/u,
+  'apps/sdkwork-im-pc/vite.config.ts must not keep @sdkwork/utils src path aliases; resolve via package exports',
 );
-assert.match(
+assert.doesNotMatch(
   pcViteConfig,
-  /find:\s*\/\^@sdkwork\\\/utils\$\/,\s*replacement:\s*sdkworkUtilsEntry/u,
-  'apps/sdkwork-im-pc/vite.config.ts must alias the exact @sdkwork/utils root import to sdkwork-utils index.ts',
+  /find:\s*\/\^@sdkwork\\\/utils/u,
+  'apps/sdkwork-im-pc/vite.config.ts must not alias @sdkwork/utils to TypeScript source',
 );
 
 for (const relativePath of [

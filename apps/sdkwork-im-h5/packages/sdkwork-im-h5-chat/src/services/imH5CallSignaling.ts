@@ -8,6 +8,7 @@ import type {
   RtcCallStartOptions,
   RtcCallWatchOptions,
 } from "@sdkwork/rtc-h5-call";
+import { uuid } from "@sdkwork/utils/id";
 
 import { getChatImSdkClient } from "./chatConversationService";
 
@@ -37,10 +38,7 @@ export function resolveImH5CallDeviceId(): string {
   try {
     let deviceId = window.localStorage.getItem(IM_H5_DEVICE_ID_STORAGE_KEY);
     if (!deviceId) {
-      deviceId =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? `h5-${crypto.randomUUID()}`
-          : `h5-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      deviceId = `h5-${uuid()}`;
       window.localStorage.setItem(IM_H5_DEVICE_ID_STORAGE_KEY, deviceId);
     }
     return deviceId;

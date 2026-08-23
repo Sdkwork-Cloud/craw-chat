@@ -21,6 +21,7 @@ import {
   rtcMediaService,
   type SdkworkRtcMediaService,
 } from './RtcMediaService';
+import { uuid } from '@sdkwork/utils/id';
 
 export type SdkworkCallType = 'voice' | 'video';
 
@@ -132,11 +133,7 @@ function normalizeIdSegment(value: string): string {
 }
 
 function createRuntimeId(prefix: string, stablePart: string): string {
-  const randomPart =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `${prefix}-${normalizeIdSegment(stablePart) || 'conversation'}-${randomPart}`;
+  return `${prefix}-${normalizeIdSegment(stablePart) || 'conversation'}-${uuid()}`;
 }
 
 function resolveParticipantId(session: SdkworkChatSession | null): string {

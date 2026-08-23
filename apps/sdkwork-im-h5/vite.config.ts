@@ -39,10 +39,6 @@ const sdkCommonSourceRoot = path.resolve(
   __dirname,
   '../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src',
 );
-const sdkworkUtilsSourceRoot = path.resolve(
-  __dirname,
-  '../../../sdkwork-utils/packages/sdkwork-utils-typescript/src',
-);
 
 export default defineConfig(({ mode }) => ({
   // Keep the dependency cache outside `node_modules`: the workspace's
@@ -338,8 +334,6 @@ export default defineConfig(({ mode }) => ({
         replacement: `${sdkCommonSourceRoot}/$1/index.ts`,
       },
       { find: /^@sdkwork\/sdk-common$/, replacement: `${sdkCommonSourceRoot}/index.ts` },
-      { find: /^@sdkwork\/utils\/(.+)$/, replacement: `${sdkworkUtilsSourceRoot}/$1` },
-      { find: /^@sdkwork\/utils$/, replacement: `${sdkworkUtilsSourceRoot}/index.ts` },
     ],
   },
   css: {

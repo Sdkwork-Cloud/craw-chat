@@ -14,6 +14,7 @@ import {
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core/sdk/session';
 import type { Chat, Message, User } from '@sdkwork/im-pc-types';
+import { uuid } from '@sdkwork/utils/id';
 import { chatService, createSdkworkChatService, type ChatService } from './ChatService';
 import { contactService } from './ContactService';
 import { createDefaultAvatar } from './DefaultAvatarService';
@@ -255,11 +256,7 @@ export function parseGroupInviteDescriptor(message: Message): GroupInviteDescrip
 }
 
 export function createGroupClientRequestKey(): string {
-  const clientGeneratedId =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `pc-group-${clientGeneratedId}`;
+  return `pc-group-${uuid()}`;
 }
 
 function createGroupAvatar(): string {

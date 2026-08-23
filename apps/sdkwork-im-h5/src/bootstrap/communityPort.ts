@@ -26,14 +26,11 @@ import {
 } from '@sdkwork/community-mobile-react-community';
 import { getSdkClients } from './sdkClients';
 import { getDriveAppSdkClientWithSession } from '@sdkwork/im-h5-core/sdk';
+import { uuid } from '@sdkwork/utils/id';
 
 
 function createIdempotencyKey(): string {
-  const random = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `community-${random}`;
+  return uuid();
 }
 
 let bootstrapped = false;

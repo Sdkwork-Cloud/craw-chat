@@ -4,6 +4,7 @@ import type {
   RoomView,
 } from '@sdkwork/im-sdk';
 import { getImSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/imSdkClient';
+import { uuid } from '@sdkwork/utils/id';
 
 export const SDKWORK_IM_GAME_MOVE_SCHEMA_PREFIX = 'urn:sdkwork:sdkwork-im:message:custom:game.';
 
@@ -49,11 +50,7 @@ export function buildGameMoveSchemaRef(gameKey: string): string {
 }
 
 function createRoomId(): string {
-  const clientGeneratedId =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `pc-room-${clientGeneratedId}`;
+  return `pc-room-${uuid()}`;
 }
 
 function uniqueMemberIds(memberIds: string[] | undefined): string[] {

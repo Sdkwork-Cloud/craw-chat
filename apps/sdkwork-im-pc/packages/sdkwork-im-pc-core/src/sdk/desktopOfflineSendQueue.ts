@@ -15,6 +15,7 @@ import {
   resolveDesktopOfflinePrincipalScope,
   type DesktopOfflinePrincipalScope,
 } from './desktopOfflineScope';
+import { uuid } from '@sdkwork/utils/id';
 
 export type DesktopPendingMediaPart = {
   kind?: string;
@@ -65,10 +66,7 @@ const MAX_CONCURRENT_PENDING_SEND_FLUSH_SCOPES = 32;
 const pendingSendFlushesInFlight = new Map<string, Promise<void>>();
 
 function createPendingSendClaimId(): string {
-  if (!globalThis.crypto?.randomUUID) {
-    throw new Error('Secure random UUID support is required for offline send claims.');
-  }
-  return `pc-flush-${globalThis.crypto.randomUUID()}`;
+  return `pc-flush-${uuid()}`;
 }
 
 function resolveScope(): DesktopOfflinePrincipalScope | undefined {

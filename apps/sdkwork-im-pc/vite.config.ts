@@ -221,11 +221,6 @@ const sdkCommonEntry = path.resolve(
   sdkCommonSourceRoot,
   'index.ts',
 );
-const sdkworkUtilsSourceRoot = path.resolve(
-  dependencyRoot('sdkwork-utils'),
-  'packages/sdkwork-utils-typescript/src',
-);
-const sdkworkUtilsEntry = path.resolve(sdkworkUtilsSourceRoot, 'index.ts');
 const adminSdkSourceRoot = path.resolve(__dirname, './packages/sdkwork-im-pc-admin-sdk/src');
 const adminCoreSourceRoot = path.resolve(__dirname, './packages/sdkwork-im-admin-core/src');
 const reactEntry = path.resolve(__dirname, 'node_modules/react/index.js');
@@ -341,8 +336,6 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/sdk-common/errors', replacement: path.resolve(sdkCommonSourceRoot, 'errors/index.ts') },
         { find: '@sdkwork/sdk-common/utils', replacement: path.resolve(sdkCommonSourceRoot, 'utils/index.ts') },
         { find: '@sdkwork/sdk-common', replacement: sdkCommonEntry },
-        { find: /^@sdkwork\/utils\/(.+)$/, replacement: `${sdkworkUtilsSourceRoot}/$1` },
-        { find: /^@sdkwork\/utils$/, replacement: sdkworkUtilsEntry },
         { find: '@sdkwork/im-pc-types', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-types/src') },
         { find: '@sdkwork/im-pc-commons', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-commons/src') },
         { find: '@sdkwork/im-pc-shell', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-shell/src') },

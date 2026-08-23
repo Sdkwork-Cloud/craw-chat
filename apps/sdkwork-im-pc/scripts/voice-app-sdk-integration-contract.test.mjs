@@ -231,8 +231,8 @@ assert.match(
 );
 
 assert.ok(
-  tsconfigApp.compilerOptions?.paths?.['@sdkwork/utils'],
-  'tsconfig.app must map @sdkwork/utils so composed SDK clients typecheck.',
+  !tsconfigApp.compilerOptions?.paths?.['@sdkwork/utils'],
+  'tsconfig.app must not path-map @sdkwork/utils; resolve via package exports.',
 );
 
 assert.match(

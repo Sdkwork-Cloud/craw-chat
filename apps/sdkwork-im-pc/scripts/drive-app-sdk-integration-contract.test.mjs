@@ -305,14 +305,13 @@ assert.ok(
 );
 
 assert.ok(
-  tsconfigApp.compilerOptions?.paths?.['@sdkwork/utils'],
-  'tsconfig.app must map @sdkwork/utils so drive SDK composed clients typecheck.',
+  !tsconfigApp.compilerOptions?.paths?.['@sdkwork/utils'],
+  'tsconfig.app must not path-map @sdkwork/utils; resolve via package exports.',
 );
 
-assert.match(
-  viteConfigSource,
-  /@sdkwork\/utils/u,
-  'Vite must alias @sdkwork/utils for shared utility standardization.',
+assert.ok(
+  !/@sdkwork\/utils['"]\s*,\s*[\s\S]*sdkwork-utils-typescript\/src/u.test(viteConfigSource),
+  'Vite must not alias @sdkwork/utils to sdkwork-utils TypeScript src; resolve via package exports.',
 );
 
 console.log('sdkwork im drive app SDK integration contract passed.');
