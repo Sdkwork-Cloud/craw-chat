@@ -1,3 +1,11 @@
+import { resolveBrowserDistOutDir } from '../../../sdkwork-specs/tools/browser-dist-layout.mjs';
+function resolveViteEnvironment(mode, processEnv = process.env) {
+  const profileMatch = /^(standalone|cloud)\.(development|test|staging|production)$/u.exec(mode ?? '');
+  return profileMatch?.[2]
+    ?? (['development', 'test', 'staging', 'production'].includes(processEnv.SDKWORK_ENVIRONMENT ?? '')
+      ? processEnv.SDKWORK_ENVIRONMENT
+      : 'production');
+}
 import tailwindcss from '@tailwindcss/vite';
 import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-credential-entry/vite';
 import react from '@vitejs/plugin-react';
@@ -64,6 +72,7 @@ export default defineConfig(({ mode }) => ({
     // Replaced define to avoid passing server secrets to client.
   },
   esbuild: {
+      outDir: resolveBrowserDistOutDir(resolveViteEnvironment(mode, process.env)),
     // Dev esbuild defaults to target `esnext`. Combined with
     // `useDefineForClassFields: false` (injected for SDK sources without a
     // tsconfig, or set explicitly in tsconfig.json), esbuild compiles class

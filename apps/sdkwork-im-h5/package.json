@@ -16,8 +16,8 @@
     "build:browser": "pnpm build",
     "build:browser:staging": "node ../../scripts/dev/run-vite-cli.mjs build --mode staging",
     "build:browser:prod": "node ../../scripts/dev/run-vite-cli.mjs build --mode production",
-    "build:staging": "pnpm build:browser:staging",
-    "build:prod": "pnpm build:browser:prod",
+    "build:staging": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment staging",
+    "build:prod": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment prod",
     "preview": "vite preview",
     "preview:browser": "node ../../scripts/dev/run-vite-cli.mjs preview",
     "typecheck": "node ../../scripts/dev/run-tsc-cli.mjs --noEmit -p tsconfig.json",
@@ -33,7 +33,9 @@
     "_sdkwork:clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('.vite',{recursive:true,force:true})\"",
     "start": "node dist/server.cjs",
     "lint": "node ../../scripts/dev/run-tsc-cli.mjs --noEmit -p tsconfig.json",
-    "test:workspace": "pnpm exec tsx --test"
+    "test:workspace": "pnpm exec tsx --test",
+    "build:dev": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment dev",
+    "build:test": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --environment test"
   },
   "dependencies": {
     "@sdkwork/agents-h5-agents": "workspace:*",

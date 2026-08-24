@@ -234,7 +234,16 @@
     "install:native:check": "node scripts/release/build-sdkwork-im-native-installer.mjs --check --dry-run",
     "release:native:package": "node scripts/release/build-sdkwork-im-native-installer.mjs --all",
     "release:native:package:check": "node scripts/release/build-sdkwork-im-native-installer.mjs --check --dry-run --all",
-    "test:h5-knowledgebase-app-sdk-integration": "node apps/sdkwork-im-h5/scripts/knowledgebase-app-sdk-integration-contract.test.mjs"
+    "test:h5-knowledgebase-app-sdk-integration": "node apps/sdkwork-im-h5/scripts/knowledgebase-app-sdk-integration-contract.test.mjs",
+    "build:h5:dev": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture h5 --environment dev",
+    "build:h5:test": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture h5 --environment test",
+    "build:h5:staging": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture h5 --environment staging",
+    "build:h5:prod": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture h5 --environment prod",
+    "build:pc:dev": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture pc --environment dev",
+    "build:pc:test": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture pc --environment test",
+    "build:pc:staging": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture pc --environment staging",
+    "build:pc:prod": "node ../sdkwork-specs/tools/build-browser-client.mjs --root . --architecture pc --environment prod",
+    "check:browser-build-scripts": "node ../sdkwork-specs/tools/check-browser-build-scripts.mjs --root ."
   },
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*",
