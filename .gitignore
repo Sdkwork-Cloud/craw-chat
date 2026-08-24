@@ -101,6 +101,9 @@ config/*.local.toml
 **/.turbo/
 *.tsbuildinfo
 **/.cache/
+# C# generated SDK build outputs (keep publish scripts, drop Release/obj outputs)
+**/generated/**/bin/Release/
+**/generated/**/obj/Release/
 
 
 # SDKWork local-only and generated artifacts
