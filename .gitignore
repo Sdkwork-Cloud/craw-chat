@@ -118,3 +118,6 @@ Thumbs.db
 # Temporary dev/debug scripts
 tmp-repro-*
 scripts/dev/_tmp-*
+
+# Runtime-generated env config (modified by local dev server)
+**/public/runtime-env.json

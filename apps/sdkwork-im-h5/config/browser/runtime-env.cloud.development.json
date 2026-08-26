@@ -1,9 +1,13 @@
 {
+  "environment": "development",
+  "deploymentProfile": "cloud",
+  "profileId": "cloud.development",
+  "runtimeTarget": "browser",
+  "browserOriginMode": "cross-origin",
   "schemaVersion": 1,
   "kind": "sdkwork.browser-runtime-env",
   "profile": "development",
   "appKey": "sdkwork-im-h5",
-  "deploymentProfile": "standalone",
   "publicRuntimeConfig": {
     "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "http://127.0.0.1:4178",
     "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "ws://127.0.0.1:4178",
@@ -16,5 +20,10 @@
   "featureFlags": {
     "qrLoginEnabled": false,
     "pushNotificationsEnabled": false
-  }
+  },
+  "appApiBaseUrl": "https://api-dev.sdkwork.com",
+  "backendApiBaseUrl": "https://api-dev.sdkwork.com",
+  "driveAppApiBaseUrl": "https://api-dev.sdkwork.com",
+  "appbaseAppApiBaseUrl": "https://api-dev.sdkwork.com",
+  "deployAppApiBaseUrl": "https://api-dev.sdkwork.com"
 }

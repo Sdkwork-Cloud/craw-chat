@@ -166,6 +166,18 @@
       ],
       "sdkwork-voice-pc-core": [
         "./../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-core/src"
+      ],
+      "react/jsx-dev-runtime": [
+        "./node_modules/@types/react/jsx-dev-runtime"
+      ],
+      "react-dom/*": [
+        "./node_modules/@types/react-dom/*"
+      ],
+      "@sdkwork/sdk-common": [
+        "../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
+      ],
+      "@sdkwork/sdk-common/*": [
+        "../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/*"
       ]
     },
     "allowImportingTsExtensions": true,

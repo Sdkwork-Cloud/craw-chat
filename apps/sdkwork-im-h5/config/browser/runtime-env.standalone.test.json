@@ -1,0 +1,29 @@
+{
+  "environment": "test",
+  "deploymentProfile": "standalone",
+  "profileId": "standalone.test",
+  "runtimeTarget": "browser",
+  "browserOriginMode": "same-origin",
+  "schemaVersion": 1,
+  "kind": "sdkwork.browser-runtime-env",
+  "profile": "development",
+  "appKey": "sdkwork-im-h5",
+  "publicRuntimeConfig": {
+    "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "http://127.0.0.1:4178",
+    "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "ws://127.0.0.1:4178",
+    "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "http://127.0.0.1:4178",
+    "VITE_SDKWORK_IM_API_BASE_URL": "http://127.0.0.1:4178",
+    "VITE_SDKWORK_DRIVE_APP_API_BASE_URL": "http://127.0.0.1:4178",
+    "VITE_SDKWORK_IAM_API_BASE_URL": "http://127.0.0.1:4178",
+    "VITE_SDKWORK_ORDER_APP_API_BASE_URL": "http://127.0.0.1:4178"
+  },
+  "featureFlags": {
+    "qrLoginEnabled": false,
+    "pushNotificationsEnabled": false
+  },
+  "appApiBaseUrl": "/",
+  "backendApiBaseUrl": "/",
+  "driveAppApiBaseUrl": "/",
+  "appbaseAppApiBaseUrl": "/",
+  "deployAppApiBaseUrl": "/"
+}
