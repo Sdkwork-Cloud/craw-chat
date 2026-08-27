@@ -14,6 +14,7 @@
   "dependencies": {
     "@sdkwork/community-contracts": "workspace:*",
     "@sdkwork/community-sdk-ports": "workspace:*",
+    "@sdkwork/feeds-sdk": "workspace:*",
     "@sdkwork/im-h5-commons": "workspace:*",
     "@sdkwork/im-h5-core": "workspace:*",
     "@sdkwork/im-h5-types": "workspace:*",

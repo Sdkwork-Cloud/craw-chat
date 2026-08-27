@@ -72,7 +72,6 @@ export default defineConfig(({ mode }) => ({
     // Replaced define to avoid passing server secrets to client.
   },
   esbuild: {
-      outDir: resolveBrowserDistOutDir(resolveViteEnvironment(mode, process.env)),
     // Dev esbuild defaults to target `esnext`. Combined with
     // `useDefineForClassFields: false` (injected for SDK sources without a
     // tsconfig, or set explicitly in tsconfig.json), esbuild compiles class
@@ -370,6 +369,10 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    // Canonical deployment-profile-aware output layout (dist/<profile>/<env>):
+    // the profile comes from SDKWORK_DEPLOYMENT_PROFILE injected by the
+    // canonical build runner (build-browser-client.mjs).
+    outDir: resolveBrowserDistOutDir(resolveViteEnvironment(mode, process.env)),
     rollupOptions: {
       output: {
         manualChunks(id) {

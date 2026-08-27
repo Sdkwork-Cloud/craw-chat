@@ -148,6 +148,7 @@ packages:
   - "../sdkwork-cloudrouter/sdks/cloudrouter-app-sdk/cloudrouter-app-sdk-typescript"
   - "../sdkwork-cloudrouter/sdks/cloudrouter-backend-sdk/cloudrouter-backend-sdk-typescript"
   - "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript"
+  - "../sdkwork-assets/sdks/sdkwork-assets-app-sdk/sdkwork-assets-app-sdk-typescript"
   - "../sdkwork-generations/sdks/sdkwork-generations-app-sdk/sdkwork-generations-app-sdk-typescript"
   - "../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents"
   - "../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-commons"

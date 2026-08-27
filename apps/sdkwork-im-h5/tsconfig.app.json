@@ -2,9 +2,8 @@
   "extends": "./tsconfig.json",
   "include": [
     "src",
-    "server.ts",
-    "local-api.ts",
-    "packages/*/src"
+    "packages/*/src",
+    "server.ts"
   ],
   "exclude": [
     "dist",

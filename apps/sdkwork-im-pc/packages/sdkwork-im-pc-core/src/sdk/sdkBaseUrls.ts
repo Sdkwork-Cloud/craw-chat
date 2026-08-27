@@ -1,5 +1,5 @@
 import { IM_REALTIME_WS } from '@sdkwork/im-sdk';
-import { resolveBrowserCloudSdkBaseUrl } from '../../../../../../sdkwork-specs/tools/browser-cloud-api-base.mjs';
+import { resolveBrowserCloudSdkBaseUrl } from '../../../../../../../sdkwork-specs/tools/browser-cloud-api-base.mjs';
 import {
   DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
   DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL,
