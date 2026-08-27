@@ -1,4 +1,5 @@
 import { IM_REALTIME_WS } from '@sdkwork/im-sdk';
+import { resolveBrowserCloudSdkBaseUrl } from '../../../../../../sdkwork-specs/tools/browser-cloud-api-base.mjs';
 import {
   DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
   DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL,
@@ -27,13 +28,14 @@ export function hasViteImportMetaEnv(): boolean {
 }
 
 export function resolveBrowserBaseUrl(value: string): string {
+  const resolved = resolveBrowserCloudSdkBaseUrl(value);
   // Browser clients must never send a LAN request to their own loopback host.
   // Keep server-side and native/desktop resolution unchanged by requiring a window.
   if (typeof window === 'undefined') {
-    return value;
+    return resolved;
   }
   try {
-    const parsedUrl = new URL(value);
+    const parsedUrl = new URL(resolved);
     const currentHost = window.location.hostname;
     if (
       ['127.0.0.1', 'localhost', '0.0.0.0'].includes(parsedUrl.hostname)
@@ -46,7 +48,7 @@ export function resolveBrowserBaseUrl(value: string): string {
   } catch {
     // Preserve non-URL values for the existing downstream validation path.
   }
-  return value;
+  return resolved;
 }
 
 export function readSdkBaseUrlEnvValue(key: string): string | undefined {
