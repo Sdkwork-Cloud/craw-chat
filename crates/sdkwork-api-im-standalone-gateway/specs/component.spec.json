@@ -117,6 +117,10 @@
         "export": "sdkwork_api_shop_assembly::assemble_app_api_contribution_from_env"
       },
       {
+        "name": "assetsAppApiContribution",
+        "export": "sdkwork_api_assets_assembly::assemble_app_api_contribution"
+      },
+      {
         "name": "notaryAppApiContribution",
         "export": "sdkwork_api_notary_assembly::assemble_app_api_contribution"
       },

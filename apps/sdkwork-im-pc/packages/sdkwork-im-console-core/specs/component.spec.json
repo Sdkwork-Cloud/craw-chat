@@ -186,12 +186,6 @@
           "inheritRoles": true
         },
         {
-          "moduleId": "aiot",
-          "manifestRef": "../../../../../sdkwork-iam/iam/modules/iot/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
           "moduleId": "catalog",
           "manifestRef": "../../../../../sdkwork-catalog/specs/iam.module.manifest.json",
           "inheritPermissions": true,
@@ -235,12 +229,6 @@
         },
         {
           "moduleId": "knowledge",
-          "manifestRef": "../../../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
-        },
-        {
-          "moduleId": "knowledgebase",
           "manifestRef": "../../../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true

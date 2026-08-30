@@ -12,6 +12,8 @@ path = "src/lib.rs"
 [dependencies]
 axum.workspace = true
 tokio.workspace = true
+sdkwork_web_bootstrap = { workspace = true }
+sdkwork_web_core = { workspace = true }
 sdkwork_web_bootstrap.workspace = true
 sdkwork_web_core.workspace = true
 chrono = "0.4.44"
@@ -39,22 +41,6 @@ sdkwork_im_database_pool = { workspace = true }
 sdkwork_im_service_readiness = { workspace = true }
 calls-service = { path = "../../services/im-calls-service" }
 sdkwork-agents-runtime-facade.workspace = true
-sdkwork-routes-im-audit-backend-api = { workspace = true }
-sdkwork-routes-im-automation-app-api = { workspace = true }
-sdkwork-routes-im-calls-open-api.workspace = true
-sdkwork-routes-im-chat-open-api = { workspace = true }
-sdkwork-routes-im-governance-backend-api = { workspace = true }
-sdkwork-routes-im-knowledgebase-app-api = { workspace = true }
-sdkwork-routes-im-media-app-api = { workspace = true }
-sdkwork-routes-im-notification-app-api = { workspace = true }
-sdkwork-routes-im-ops-backend-api = { workspace = true }
-sdkwork-routes-im-portal-app-api = { workspace = true }
-sdkwork-routes-im-realtime-open-api = { workspace = true }
-sdkwork-routes-im-social-backend-api = { workspace = true }
-sdkwork-routes-im-social-open-api = { workspace = true }
-sdkwork-routes-im-space-open-api = { workspace = true }
-sdkwork-routes-im-stream-app-api = { workspace = true }
-
 # Embedded dependency surfaces (single-ingress composition). External route,
 # service, repository, and database implementation crates enter through the
 # owning application assemblies (API_ASSEMBLY_SPEC §3/§6.1); the membership and
@@ -95,6 +81,21 @@ sdkwork-feeds-source-news.workspace = true
 sdkwork-api-company-assembly.workspace = true
 sdkwork-company-database-host.workspace = true
 sdkwork_content_feeds_service.workspace = true
+sdkwork-routes-im-audit-backend-api.workspace = true
+sdkwork-routes-im-automation-app-api.workspace = true
+sdkwork-routes-im-calls-open-api.workspace = true
+sdkwork-routes-im-chat-open-api.workspace = true
+sdkwork-routes-im-governance-backend-api.workspace = true
+sdkwork-routes-im-knowledgebase-app-api.workspace = true
+sdkwork-routes-im-media-app-api.workspace = true
+sdkwork-routes-im-notification-app-api.workspace = true
+sdkwork-routes-im-ops-backend-api.workspace = true
+sdkwork-routes-im-portal-app-api.workspace = true
+sdkwork-routes-im-realtime-open-api.workspace = true
+sdkwork-routes-im-social-backend-api.workspace = true
+sdkwork-routes-im-social-open-api.workspace = true
+sdkwork-routes-im-space-open-api.workspace = true
+sdkwork-routes-im-stream-app-api.workspace = true
 
 [dev-dependencies]
 tower.workspace = true

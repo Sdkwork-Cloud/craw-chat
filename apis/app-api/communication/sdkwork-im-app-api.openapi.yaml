@@ -2,28 +2,28 @@ openapi: 3.1.2
 info:
   title: Sdkwork IM App API
   version: 0.1.0
-  description: >-
-    Owner-only app-development OpenAPI contract for Sdkwork IM-owned app-business and non-management HTTP APIs.
-    Dependency capabilities, including sdkwork-appbase identity/session/IAM/QR auth, are consumed through
-    sdkDependencies and dependency SDKs instead of being regenerated here.
+  description: Owner-only app-development OpenAPI contract for Sdkwork IM-owned app-business
+    and non-management HTTP APIs. Dependency capabilities, including sdkwork-appbase
+    identity/session/IAM/QR auth, are consumed through sdkDependencies and dependency
+    SDKs instead of being regenerated here.
 servers:
-  - url: http://127.0.0.1:18079
+- url: http://127.0.0.1:18079
 security:
-  - AuthToken: []
-    AccessToken: []
+- AuthToken: []
+  AccessToken: []
 tags:
-  - name: portal
-  - name: media
-  - name: automation
-  - name: notifications
-  - name: principal
-  - name: chat
+- name: portal
+- name: media
+- name: automation
+- name: notifications
+- name: principal
+- name: chat
 paths:
   /app/v3/api/automation/agent_responses:
     post:
       tags:
-        - automation
-      operationId: automation.agentResponses.create
+      - automation
+      operationId: agentResponses.create
       summary: Start an agent response stream
       requestBody:
         required: true
@@ -38,18 +38,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/StreamSession'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/StreamSession'
         '400':
           description: Problem detail response
           content:
@@ -93,21 +93,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/automation/agent_responses/{streamId}/complete:
     post:
       tags:
-        - automation
-      operationId: automation.agentResponses.complete
+      - automation
+      operationId: agentResponses.complete
       summary: Complete an agent response stream
       parameters:
-        - $ref: '#/components/parameters/StreamIdPath'
+      - $ref: '#/components/parameters/StreamIdPath'
       requestBody:
         required: true
         content:
@@ -121,18 +122,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/StreamSession'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/StreamSession'
         '400':
           description: Problem detail response
           content:
@@ -176,8 +177,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -186,11 +187,11 @@ paths:
   /app/v3/api/automation/agent_responses/{streamId}/frames:
     post:
       tags:
-        - automation
-      operationId: automation.agentResponses.frames.create
+      - automation
+      operationId: agentResponses.frames.create
       summary: Append a frame to an agent response stream
       parameters:
-        - $ref: '#/components/parameters/StreamIdPath'
+      - $ref: '#/components/parameters/StreamIdPath'
       requestBody:
         required: true
         content:
@@ -204,18 +205,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/StreamFrame'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/StreamFrame'
         '400':
           description: Problem detail response
           content:
@@ -259,8 +260,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -269,8 +270,8 @@ paths:
   /app/v3/api/automation/agent_tool_calls:
     post:
       tags:
-        - automation
-      operationId: automation.agentToolCalls.create
+      - automation
+      operationId: agentToolCalls.create
       summary: Request an agent tool call
       requestBody:
         required: true
@@ -285,18 +286,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/AgentToolCall'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/AgentToolCall'
         '400':
           description: Problem detail response
           content:
@@ -340,18 +341,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/automation/executions:
     post:
       tags:
-        - automation
-      operationId: automation.executions.create
+      - automation
+      operationId: executions.create
       summary: Request an automation execution
       requestBody:
         required: true
@@ -366,18 +368,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/AutomationExecutionRequestResponse'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/AutomationExecutionRequestResponse'
         '400':
           description: Problem detail response
           content:
@@ -415,21 +417,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/automation/executions/{executionId}:
     get:
       tags:
-        - automation
-      operationId: automation.executions.retrieve
+      - automation
+      operationId: executions.retrieve
       summary: Get an automation execution
       parameters:
-        - $ref: '#/components/parameters/ExecutionIdPath'
+      - $ref: '#/components/parameters/ExecutionIdPath'
       responses:
         '200':
           description: Automation execution
@@ -437,18 +440,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/AutomationExecution'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/AutomationExecution'
         '401':
           description: Problem detail response
           content:
@@ -474,8 +477,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -484,12 +487,12 @@ paths:
   /app/v3/api/automation/executions/{executionId}/agent_tool_calls/{toolCallId}/complete:
     post:
       tags:
-        - automation
-      operationId: automation.agentToolCalls.complete
+      - automation
+      operationId: agentToolCalls.complete
       summary: Complete an agent tool call
       parameters:
-        - $ref: '#/components/parameters/ExecutionIdPath'
-        - $ref: '#/components/parameters/ToolCallIdPath'
+      - $ref: '#/components/parameters/ExecutionIdPath'
+      - $ref: '#/components/parameters/ToolCallIdPath'
       requestBody:
         required: true
         content:
@@ -503,18 +506,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/AgentToolCall'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/AgentToolCall'
         '400':
           description: Problem detail response
           content:
@@ -558,8 +561,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -568,23 +571,23 @@ paths:
   /app/v3/api/notifications:
     get:
       tags:
-        - notifications
-      operationId: notifications.list
+      - notifications
+      operationId: list
       summary: List notifications for the current principal
       parameters:
-        - name: page_size
-          in: query
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 200
-            default: 20
-        - name: cursor
-          in: query
-          required: false
-          schema:
-            type: string
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 20
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Notification list
@@ -592,24 +595,24 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - items
-                          - pageInfo
-                        properties:
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - items
+                      - pageInfo
+                      properties:
+                        items:
+                          type: array
                           items:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/NotificationTask'
-                          pageInfo:
-                            $ref: '#/components/schemas/PageInfo'
+                            $ref: '#/components/schemas/NotificationTask'
+                        pageInfo:
+                          $ref: '#/components/schemas/PageInfo'
         '401':
           description: Problem detail response
           content:
@@ -629,8 +632,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -639,8 +642,8 @@ paths:
   /app/v3/api/notifications/requests:
     post:
       tags:
-        - notifications
-      operationId: notifications.requests.create
+      - notifications
+      operationId: requests.create
       summary: Request a notification task
       requestBody:
         required: true
@@ -655,18 +658,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/NotificationRequestResponse'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/NotificationRequestResponse'
         '400':
           description: Problem detail response
           content:
@@ -704,21 +707,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/notifications/{notificationId}:
     get:
       tags:
-        - notifications
-      operationId: notifications.retrieve
+      - notifications
+      operationId: retrieve
       summary: Get a notification task
       parameters:
-        - $ref: '#/components/parameters/NotificationIdPath'
+      - $ref: '#/components/parameters/NotificationIdPath'
       responses:
         '200':
           description: Notification task
@@ -726,18 +730,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/NotificationTask'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/NotificationTask'
         '401':
           description: Problem detail response
           content:
@@ -763,8 +767,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -773,7 +777,7 @@ paths:
   /app/v3/api/portal/access:
     get:
       tags:
-        - portal
+      - portal
       operationId: access.retrieve
       summary: Read the tenant portal access snapshot
       responses:
@@ -783,18 +787,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalAccessSnapshot'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalAccessSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -814,8 +818,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-permission: audit.read
       x-sdkwork-tenant-scope: tenant
@@ -824,10 +828,11 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/automation:
     get:
       tags:
-        - portal
+      - portal
       operationId: automation.retrieve
       summary: Read the tenant automation snapshot
       responses:
@@ -837,18 +842,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalModuleSnapshot'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalModuleSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -862,17 +867,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/conversations:
     get:
       tags:
-        - portal
+      - portal
       operationId: conversationSnapshot.retrieve
       summary: Read the tenant conversations snapshot
       responses:
@@ -882,18 +888,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalConversationSnapshot'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalConversationSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -907,17 +913,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/dashboard:
     get:
       tags:
-        - portal
+      - portal
       operationId: dashboard.retrieve
       summary: Read the tenant dashboard snapshot
       responses:
@@ -927,18 +934,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalDashboardSnapshot'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalDashboardSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -952,17 +959,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/governance:
     get:
       tags:
-        - portal
+      - portal
       operationId: governance.retrieve
       summary: Read the tenant governance snapshot
       responses:
@@ -972,18 +980,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalGovernanceSnapshot'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalGovernanceSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -997,8 +1005,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-permission: audit.read
       x-sdkwork-tenant-scope: tenant
@@ -1007,10 +1015,11 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/home:
     get:
       tags:
-        - portal
+      - portal
       operationId: home.retrieve
       summary: Read the tenant portal home snapshot
       responses:
@@ -1020,18 +1029,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalModuleSnapshot'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalModuleSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -1045,17 +1054,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/media:
     get:
       tags:
-        - portal
+      - portal
       operationId: media.retrieve
       summary: Read the tenant media snapshot
       responses:
@@ -1065,18 +1075,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalModuleSnapshot'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalModuleSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -1090,17 +1100,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/realtime:
     get:
       tags:
-        - portal
+      - portal
       operationId: realtime.retrieve
       summary: Read the tenant realtime snapshot
       responses:
@@ -1110,18 +1121,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalRealtimeSnapshot'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalRealtimeSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -1135,17 +1146,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/workspace:
     get:
       tags:
-        - portal
+      - portal
       operationId: workspace.retrieve
       summary: Read the current tenant workspace snapshot
       responses:
@@ -1155,18 +1167,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/PortalWorkspaceView'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/PortalWorkspaceView'
         '401':
           description: Problem detail response
           content:
@@ -1180,17 +1192,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/media/provider_health:
     get:
       tags:
-        - provider
+      - provider
       operationId: mediaHealth.retrieve
       summary: Retrieve media provider health
       responses:
@@ -1200,19 +1213,19 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            type: object
-                            additionalProperties: true
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          type: object
+                          additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -1232,17 +1245,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/principal/profiles/provider_health:
     get:
       tags:
-        - provider
+      - provider
       operationId: principalProfileHealth.retrieve
       summary: Retrieve principal-profile provider health
       responses:
@@ -1252,19 +1266,19 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            type: object
-                            additionalProperties: true
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          type: object
+                          additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -1284,21 +1298,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/chat/conversations/{conversationId}/knowledgebase:
     get:
       tags:
-        - chat
+      - chat
       operationId: conversations.knowledgebase.retrieve
       summary: Retrieve the group knowledgebase link
       parameters:
-        - $ref: '#/components/parameters/ConversationIdPath'
+      - $ref: '#/components/parameters/ConversationIdPath'
       responses:
         '200':
           description: Group knowledgebase link
@@ -1306,18 +1321,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
         '401':
           description: Problem detail response
           content:
@@ -1343,8 +1358,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
@@ -1352,12 +1367,12 @@ paths:
       x-sdkwork-api-surface: app-api
     post:
       tags:
-        - chat
+      - chat
       operationId: conversations.knowledgebase.create
       summary: Lazily create the group knowledgebase
       parameters:
-        - $ref: '#/components/parameters/ConversationIdPath'
-        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      - $ref: '#/components/parameters/ConversationIdPath'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
       requestBody:
         required: true
         content:
@@ -1371,36 +1386,36 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
         '201':
           description: Group knowledgebase link created
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/GroupKnowledgebaseLinkView'
         '401':
           description: Problem detail response
           content:
@@ -1432,8 +1447,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-idempotent: true
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
@@ -1444,12 +1459,12 @@ paths:
   /app/v3/api/chat/conversations/{conversationId}/knowledgebase/launch:
     post:
       tags:
-        - chat
+      - chat
       operationId: conversations.knowledgebase.launch
       summary: Issue a one-time group knowledgebase launch ticket
       parameters:
-        - $ref: '#/components/parameters/ConversationIdPath'
-        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      - $ref: '#/components/parameters/ConversationIdPath'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
       requestBody:
         required: true
         content:
@@ -1463,18 +1478,18 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/GroupKnowledgebaseLaunchResponse'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      type: object
+                      required:
+                      - item
+                      properties:
+                        item:
+                          $ref: '#/components/schemas/GroupKnowledgebaseLaunchResponse'
         '401':
           description: Problem detail response
           content:
@@ -1512,8 +1527,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-idempotent: true
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
@@ -1524,12 +1539,12 @@ paths:
   /app/v3/api/chat/conversations/{conversationId}/archive:
     post:
       tags:
-        - chat
+      - chat
       operationId: conversations.archive
       summary: Archive a group conversation and schedule its knowledgebase archive
       parameters:
-        - $ref: '#/components/parameters/ConversationIdPath'
-        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      - $ref: '#/components/parameters/ConversationIdPath'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
       requestBody:
         required: true
         content:
@@ -1543,13 +1558,13 @@ paths:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/ArchiveGroupConversationResponse'
+                - $ref: '#/components/schemas/SdkWorkApiResponse'
+                - type: object
+                  required:
+                  - data
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/ArchiveGroupConversationResponse'
         '401':
           description: Problem detail response
           content:
@@ -1581,8 +1596,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
       security:
-        - AuthToken: []
-          AccessToken: []
+      - AuthToken: []
+        AccessToken: []
       x-sdkwork-idempotent: true
       x-sdkwork-auth-mode: api-key-or-dual-token
       x-sdkwork-owner: sdkwork-im
@@ -1635,7 +1650,8 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      description: Client retry key scoped by the authenticated tenant, principal, method, and conversation path.
+      description: Client retry key scoped by the authenticated tenant, principal,
+        method, and conversation path.
       schema:
         type: string
         minLength: 1
@@ -1686,38 +1702,36 @@ components:
     GroupKnowledgebaseLifecycleState:
       type: string
       enum:
-        - absent
-        - provisioning
-        - active
-        - failed
-        - archived
-        - deleted
+      - absent
+      - provisioning
+      - active
+      - failed
+      - archived
+      - deleted
     CreateGroupKnowledgebaseRequest:
       type: object
       additionalProperties: false
-      description: >-
-        Explicit command input. Group identity, tenancy, membership, and initial space metadata are authoritative IM
-        state and are never client supplied.
+      description: Explicit command input. Group identity, tenancy, membership, and
+        initial space metadata are authoritative IM state and are never client supplied.
     LaunchGroupKnowledgebaseRequest:
       type: object
       additionalProperties: false
-      description: >-
-        Explicit command input. The response ticket is scoped to the authenticated group member and is consumed once by
-        sdkwork-knowledgebase.
+      description: Explicit command input. The response ticket is scoped to the authenticated
+        group member and is consumed once by sdkwork-knowledgebase.
     ArchiveGroupConversationRequest:
       type: object
       additionalProperties: false
-      description: >-
-        Explicit command input. The group target and archive actor are derived from the authenticated request context
-        and path and cannot be supplied by the caller.
+      description: Explicit command input. The group target and archive actor are
+        derived from the authenticated request context and path and cannot be supplied
+        by the caller.
     GroupKnowledgebaseLinkView:
       type: object
       additionalProperties: false
       required:
-        - conversationId
-        - lifecycleState
-        - membershipEpoch
-        - upstreamLinkGeneration
+      - conversationId
+      - lifecycleState
+      - membershipEpoch
+      - upstreamLinkGeneration
       properties:
         conversationId:
           type: string
@@ -1751,10 +1765,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - conversationId
-        - lifecycleState
-        - membershipEpoch
-        - upstreamLinkGeneration
+      - conversationId
+      - lifecycleState
+      - membershipEpoch
+      - upstreamLinkGeneration
       properties:
         conversationId:
           type: string
@@ -1770,7 +1784,8 @@ components:
           type: string
         launchTicket:
           type: string
-          description: Opaque one-time ticket consumed only by sdkwork-knowledgebase through IM internal RPC.
+          description: Opaque one-time ticket consumed only by sdkwork-knowledgebase
+            through IM internal RPC.
           x-sdkwork-sensitive: true
         expiresAt:
           type: string
@@ -1793,12 +1808,12 @@ components:
       type: object
       additionalProperties: false
       required:
-        - accepted
-        - resourceId
-        - status
-        - archiveEventId
-        - archivedAt
-        - knowledgebaseArchiveScheduled
+      - accepted
+      - resourceId
+      - status
+      - archiveEventId
+      - archivedAt
+      - knowledgebaseArchiveScheduled
       properties:
         accepted:
           type: boolean
@@ -1823,47 +1838,47 @@ components:
       type: object
       additionalProperties: false
       required:
-        - section
-        - generatedAt
-        - opsStatus
+      - section
+      - generatedAt
+      - opsStatus
       properties:
         section:
           type: string
           enum:
-            - access
-            - automation
-            - conversations
-            - dashboard
-            - governance
-            - home
-            - media
-            - realtime
+          - access
+          - automation
+          - conversations
+          - dashboard
+          - governance
+          - home
+          - media
+          - realtime
         generatedAt:
           type: string
           format: date-time
         opsStatus:
           type: string
           enum:
-            - ok
-            - idle
-            - degraded
-            - unavailable
-            - critical
-            - unknown
+          - ok
+          - idle
+          - degraded
+          - unavailable
+          - critical
+          - unknown
     PortalDataAvailability:
       type: object
       additionalProperties: false
       required:
-        - state
-        - source
-        - complete
+      - state
+      - source
+      - complete
       properties:
         state:
           type: string
           enum:
-            - available
-            - partial
-            - unavailable
+          - available
+          - partial
+          - unavailable
         source:
           type: string
         complete:
@@ -1874,8 +1889,8 @@ components:
       type: object
       additionalProperties: false
       required:
-        - meta
-        - availability
+      - meta
+      - availability
       properties:
         meta:
           $ref: '#/components/schemas/PortalSnapshotMeta'
@@ -1885,8 +1900,8 @@ components:
       type: object
       additionalProperties: false
       required:
-        - clientRouteWindowCount
-        - pendingRealtimeEventCount
+      - clientRouteWindowCount
+      - pendingRealtimeEventCount
       properties:
         clientRouteWindowCount:
           $ref: '#/components/schemas/PortalInt64Count'
@@ -1896,8 +1911,8 @@ components:
       type: object
       additionalProperties: false
       required:
-        - meta
-        - availability
+      - meta
+      - availability
       properties:
         meta:
           $ref: '#/components/schemas/PortalSnapshotMeta'
@@ -1909,10 +1924,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - laggingScopeCount
-        - maxOperationalLag
-        - pendingOutboxEventCount
-        - failedOutboxAttemptCount
+      - laggingScopeCount
+      - maxOperationalLag
+      - pendingOutboxEventCount
+      - failedOutboxAttemptCount
       properties:
         laggingScopeCount:
           $ref: '#/components/schemas/PortalInt64Count'
@@ -1926,8 +1941,8 @@ components:
       type: object
       additionalProperties: false
       required:
-        - meta
-        - availability
+      - meta
+      - availability
       properties:
         meta:
           $ref: '#/components/schemas/PortalSnapshotMeta'
@@ -1939,11 +1954,11 @@ components:
       type: object
       additionalProperties: false
       required:
-        - recordId
-        - action
-        - actorId
-        - recordedAt
-        - severity
+      - recordId
+      - action
+      - actorId
+      - recordedAt
+      - severity
       properties:
         recordId:
           type: string
@@ -1957,18 +1972,18 @@ components:
         severity:
           type: string
           enum:
-            - critical
-            - high
-            - warning
-            - informational
+          - critical
+          - high
+          - warning
+          - informational
     PortalAccessSnapshot:
       type: object
       additionalProperties: false
       required:
-        - meta
-        - availability
-        - recentItems
-        - hasMore
+      - meta
+      - availability
+      - recentItems
+      - hasMore
       properties:
         meta:
           $ref: '#/components/schemas/PortalSnapshotMeta'
@@ -1997,10 +2012,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - criticalCount
-        - highCount
-        - warningCount
-        - informationalCount
+      - criticalCount
+      - highCount
+      - warningCount
+      - informationalCount
       properties:
         criticalCount:
           $ref: '#/components/schemas/PortalInt64Count'
@@ -2014,10 +2029,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - meta
-        - availability
-        - sampledEventCount
-        - riskSample
+      - meta
+      - availability
+      - sampledEventCount
+      - riskSample
       properties:
         meta:
           $ref: '#/components/schemas/PortalSnapshotMeta'
@@ -2031,12 +2046,12 @@ components:
       type: object
       additionalProperties: false
       required:
-        - clientRouteWindowCount
-        - pendingEventCount
-        - maxClientRouteWindowEventCount
-        - clientRouteWindowCapacity
-        - maxClientRouteWindowUsagePermille
-        - capacityTrimmedEventCount
+      - clientRouteWindowCount
+      - pendingEventCount
+      - maxClientRouteWindowEventCount
+      - clientRouteWindowCapacity
+      - maxClientRouteWindowUsagePermille
+      - capacityTrimmedEventCount
       properties:
         clientRouteWindowCount:
           $ref: '#/components/schemas/PortalInt64Count'
@@ -2060,8 +2075,8 @@ components:
       type: object
       additionalProperties: false
       required:
-        - meta
-        - availability
+      - meta
+      - availability
       properties:
         meta:
           $ref: '#/components/schemas/PortalSnapshotMeta'
@@ -2073,9 +2088,9 @@ components:
       type: object
       additionalProperties: false
       required:
-        - name
-        - slug
-        - environment
+      - name
+      - slug
+      - environment
       properties:
         name:
           type: string
@@ -2096,9 +2111,9 @@ components:
     Sender:
       type: object
       required:
-        - id
-        - kind
-        - metadata
+      - id
+      - kind
+      - metadata
       properties:
         id:
           type: string
@@ -2115,32 +2130,32 @@ components:
     StreamDurabilityClass:
       type: string
       enum:
-        - transient
-        - durableSession
-        - eventLog
+      - transient
+      - durableSession
+      - eventLog
     StreamSessionState:
       type: string
       enum:
-        - created
-        - opened
-        - active
-        - checkpointed
-        - completed
-        - aborted
-        - expired
+      - created
+      - opened
+      - active
+      - checkpointed
+      - completed
+      - aborted
+      - expired
     StreamSession:
       type: object
       required:
-        - tenantId
-        - streamId
-        - streamType
-        - scopeKind
-        - scopeId
-        - durabilityClass
-        - orderingScope
-        - state
-        - lastFrameSeq
-        - openedAt
+      - tenantId
+      - streamId
+      - streamType
+      - scopeKind
+      - scopeId
+      - durabilityClass
+      - orderingScope
+      - state
+      - lastFrameSeq
+      - openedAt
       properties:
         tenantId:
           type: string
@@ -2186,18 +2201,18 @@ components:
     StreamFrame:
       type: object
       required:
-        - tenantId
-        - streamId
-        - streamType
-        - scopeKind
-        - scopeId
-        - frameSeq
-        - frameType
-        - encoding
-        - payload
-        - sender
-        - attributes
-        - occurredAt
+      - tenantId
+      - streamId
+      - streamType
+      - scopeKind
+      - scopeId
+      - frameSeq
+      - frameType
+      - encoding
+      - payload
+      - sender
+      - attributes
+      - occurredAt
       properties:
         tenantId:
           type: string
@@ -2234,11 +2249,11 @@ components:
       type: object
       additionalProperties: true
       required:
-        - type
-        - title
-        - status
-        - code
-        - traceId
+      - type
+      - title
+      - status
+      - code
+      - traceId
       properties:
         type:
           type: string
@@ -2264,7 +2279,8 @@ components:
           description: Optional stable localization key such as errors.result.40001.
         locale:
           type: string
-          description: Optional effective BCP 47 locale used by framework message mapping.
+          description: Optional effective BCP 47 locale used by framework message
+            mapping.
         errors:
           type: array
           items:
@@ -2272,8 +2288,8 @@ components:
     AgentSubject:
       type: object
       required:
-        - agent_id
-        - metadata
+      - agent_id
+      - metadata
       properties:
         agent_id:
           type: string
@@ -2284,20 +2300,20 @@ components:
     AgentToolCallState:
       type: string
       enum:
-        - requested
-        - completed
-        - failed
+      - requested
+      - completed
+      - failed
     AgentToolCall:
       type: object
       required:
-        - tenantId
-        - executionId
-        - agentId
-        - toolCallId
-        - toolName
-        - argumentsPayload
-        - state
-        - requestedAt
+      - tenantId
+      - executionId
+      - agentId
+      - toolCallId
+      - toolName
+      - argumentsPayload
+      - state
+      - requestedAt
       properties:
         tenantId:
           type: string
@@ -2324,10 +2340,10 @@ components:
     AppendAgentResponseDeltaRequest:
       type: object
       required:
-        - frameSeq
-        - frameType
-        - encoding
-        - payload
+      - frameSeq
+      - frameType
+      - encoding
+      - payload
       properties:
         frameSeq:
           type: string
@@ -2348,23 +2364,23 @@ components:
     AutomationExecutionState:
       type: string
       enum:
-        - requested
-        - running
-        - succeeded
-        - failed
+      - requested
+      - running
+      - succeeded
+      - failed
     AutomationExecution:
       type: object
       required:
-        - tenantId
-        - principalId
-        - principalKind
-        - executionId
-        - triggerType
-        - targetKind
-        - targetRef
-        - state
-        - retryCount
-        - requestedAt
+      - tenantId
+      - principalId
+      - principalKind
+      - executionId
+      - triggerType
+      - targetKind
+      - targetRef
+      - state
+      - retryCount
+      - requestedAt
       properties:
         tenantId:
           type: string
@@ -2400,26 +2416,26 @@ components:
     AutomationExecutionDeliveryStatus:
       type: string
       enum:
-        - accepted
-        - applied
-        - replayed
-        - failed
+      - accepted
+      - applied
+      - replayed
+      - failed
     AutomationExecutionRequestResponse:
       type: object
       required:
-        - tenantId
-        - principalId
-        - principalKind
-        - executionId
-        - triggerType
-        - targetKind
-        - targetRef
-        - state
-        - retryCount
-        - requestedAt
-        - requestKey
-        - deliveryStatus
-        - proofVersion
+      - tenantId
+      - principalId
+      - principalKind
+      - executionId
+      - triggerType
+      - targetKind
+      - targetRef
+      - state
+      - retryCount
+      - requestedAt
+      - requestKey
+      - deliveryStatus
+      - proofVersion
       properties:
         tenantId:
           type: string
@@ -2461,7 +2477,7 @@ components:
     CompleteAgentResponseRequest:
       type: object
       required:
-        - frameSeq
+      - frameSeq
       properties:
         frameSeq:
           type: string
@@ -2474,36 +2490,36 @@ components:
     CompleteAgentToolCallRequest:
       type: object
       required:
-        - resultPayload
+      - resultPayload
       properties:
         resultPayload:
           type: string
     NotificationRequestDeliveryStatus:
       type: string
       enum:
-        - accepted
-        - applied
-        - replayed
-        - failed
+      - accepted
+      - applied
+      - replayed
+      - failed
     NotificationStatus:
       type: string
       enum:
-        - requested
-        - dispatched
-        - failed
+      - requested
+      - dispatched
+      - failed
     NotificationTask:
       type: object
       required:
-        - tenantId
-        - notificationId
-        - sourceEventId
-        - sourceEventType
-        - category
-        - channel
-        - recipientId
-        - recipientKind
-        - status
-        - requestedAt
+      - tenantId
+      - notificationId
+      - sourceEventId
+      - sourceEventType
+      - category
+      - channel
+      - recipientId
+      - recipientKind
+      - status
+      - requestedAt
       properties:
         tenantId:
           type: string
@@ -2540,19 +2556,19 @@ components:
     NotificationRequestResponse:
       type: object
       required:
-        - tenantId
-        - notificationId
-        - sourceEventId
-        - sourceEventType
-        - category
-        - channel
-        - recipientId
-        - recipientKind
-        - status
-        - requestedAt
-        - requestKey
-        - deliveryStatus
-        - proofVersion
+      - tenantId
+      - notificationId
+      - sourceEventId
+      - sourceEventType
+      - category
+      - channel
+      - recipientId
+      - recipientKind
+      - status
+      - requestedAt
+      - requestKey
+      - deliveryStatus
+      - proofVersion
       properties:
         tenantId:
           type: string
@@ -2595,10 +2611,10 @@ components:
     RequestAgentToolCallRequest:
       type: object
       required:
-        - executionId
-        - toolCallId
-        - toolName
-        - argumentsPayload
+      - executionId
+      - toolCallId
+      - toolName
+      - argumentsPayload
       properties:
         executionId:
           type: string
@@ -2611,10 +2627,10 @@ components:
     RequestAutomationExecution:
       type: object
       required:
-        - executionId
-        - triggerType
-        - targetKind
-        - targetRef
+      - executionId
+      - triggerType
+      - targetKind
+      - targetRef
       properties:
         executionId:
           type: string
@@ -2629,13 +2645,13 @@ components:
     RequestNotification:
       type: object
       required:
-        - notificationId
-        - sourceEventId
-        - sourceEventType
-        - category
-        - channel
-        - recipientId
-        - recipientKind
+      - notificationId
+      - sourceEventId
+      - sourceEventType
+      - category
+      - channel
+      - recipientId
+      - recipientKind
       properties:
         notificationId:
           type: string
@@ -2660,11 +2676,11 @@ components:
     StartAgentResponseRequest:
       type: object
       required:
-        - executionId
-        - streamId
-        - streamType
-        - conversationId
-        - agent
+      - executionId
+      - streamId
+      - streamType
+      - conversationId
+      - agent
       properties:
         executionId:
           type: string
@@ -2684,15 +2700,15 @@ components:
       type: object
       additionalProperties: false
       required:
-        - code
-        - data
-        - traceId
+      - code
+      - data
+      - traceId
       properties:
         code:
           type: integer
           format: int32
           enum:
-            - 0
+          - 0
           default: 0
           minimum: 0
           maximum: 0
@@ -2706,13 +2722,13 @@ components:
       type: object
       additionalProperties: false
       required:
-        - mode
+      - mode
       properties:
         mode:
           type: string
           enum:
-            - offset
-            - cursor
+          - offset
+          - cursor
         page:
           type: integer
           minimum: 1
@@ -2728,8 +2744,8 @@ components:
           minimum: 0
         nextCursor:
           type:
-            - string
-            - 'null'
+          - string
+          - 'null'
         hasMore:
           type: boolean
     SdkWorkPlatformErrorCode:
@@ -2742,8 +2758,8 @@ components:
       type: object
       additionalProperties: false
       required:
-        - field
-        - message
+      - field
+      - message
       properties:
         field:
           type: string
@@ -2760,9 +2776,9 @@ components:
           type: object
           additionalProperties:
             oneOf:
-              - type: string
-              - type: number
-              - type: integer
-              - type: boolean
+            - type: string
+            - type: number
+            - type: integer
+            - type: boolean
 x-sdkwork-owner: sdkwork-im
 x-sdkwork-api-authority: sdkwork-im.app

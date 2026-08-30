@@ -143,14 +143,14 @@
       },
       "moduleCatalogRefs": [
         {
-          "moduleId": "iam-kernel",
-          "manifestRef": "../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": false
-        },
-        {
           "moduleId": "drive",
           "manifestRef": "../../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "feeds",
+          "manifestRef": "../../../../../sdkwork-feeds/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
@@ -161,35 +161,28 @@
           "inheritRoles": true
         },
         {
+          "moduleId": "knowledge",
+          "manifestRef": "../../../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
           "moduleId": "notary",
           "manifestRef": "../../../../../sdkwork-notary/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
-          "moduleId": "feeds",
-          "manifestRef": "../../../../../sdkwork-feeds/specs/iam.module.manifest.json",
-          "inheritPermissions": true
-        },
-        {
-          "moduleId": "community",
-          "manifestRef": "../../../../../sdkwork-community/specs/iam.module.manifest.json",
-          "inheritPermissions": true
-        },
-        {
           "moduleId": "order",
           "manifestRef": "../../../../../sdkwork-order/specs/iam.module.manifest.json",
-          "inheritPermissions": true
-        },
-        {
-          "moduleId": "knowledgebase",
-          "manifestRef": "../../../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
-          "inheritPermissions": true
+          "inheritPermissions": true,
+          "inheritRoles": true
         },
         {
           "moduleId": "voice",
           "manifestRef": "../../../../../sdkwork-voice/specs/iam.module.manifest.json",
-          "inheritPermissions": true
+          "inheritPermissions": true,
+          "inheritRoles": true
         }
       ],
       "bootstrapAccessTokenScope": {
