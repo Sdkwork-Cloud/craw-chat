@@ -11,10 +11,12 @@ Platform standard: [../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_ADOPTION.md](../../
 | `standalone.test.env` | `standalone.test` | Standalone integration test |
 | `standalone.staging.env` | `standalone.staging` | Standalone staging smoke |
 | `standalone.production.env` | `standalone.production` | Standalone production |
+| `standalone.demo.env` | `standalone.demo` | Standalone independent demo deployment |
 | `cloud.development.env` | `cloud.development` | Cloud development integration |
 | `cloud.test.env` | `cloud.test` | Cloud test integration |
 | `cloud.staging.env` | `cloud.staging` | Cloud staging / pre-production |
 | `cloud.production.env` | `cloud.production` | Cloud production |
+| `cloud.demo.env` | `cloud.demo` | Cloud independent demo deployment |
 
 ## Standalone gateway
 

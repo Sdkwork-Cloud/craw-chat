@@ -9,13 +9,13 @@
     "schemaVersion": { "const": 1 },
     "kind": { "const": "sdkwork.deployment-index" },
     "application": { "const": "sdkwork-im" },
-    "defaultProfile": { "type": "string", "pattern": "^(standalone|cloud)\\.(development|test|staging|production)$" },
+    "defaultProfile": { "type": "string", "pattern": "^(standalone|cloud)\\.(development|test|staging|production|demo)$" },
     "environments": {
       "type": "object",
-      "required": ["development", "test", "staging", "production"],
+      "required": ["development", "test", "staging", "production", "demo"],
       "additionalProperties": false,
       "patternProperties": {
-        "^(development|test|staging|production)$": {
+        "^(development|test|staging|production|demo)$": {
           "type": "object",
           "additionalProperties": false,
           "required": ["applicationOrigin", "cloudApiBaseUrl"],
