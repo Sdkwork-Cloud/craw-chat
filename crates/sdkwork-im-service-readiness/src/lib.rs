@@ -4,9 +4,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use im_app_context::resolve_web_environment_from_process_env;
 use sdkwork_database_sqlx::DatabasePool;
+use sdkwork_iam_web_adapter::resolve_iam_postgres_pool_from_env;
 use sdkwork_web_bootstrap::{CompositeReadinessCheck, ReadinessCheck, ReadinessFuture};
 use sdkwork_web_core::WebEnvironment;
-use session_gateway::resolve_iam_auth_pool_from_env;
 use sqlx::PgPool;
 
 struct PgPoolReadinessCheck {
@@ -349,7 +349,7 @@ pub async fn resolve_im_service_readiness_check() -> Arc<dyn ReadinessCheck> {
     let environment = resolve_web_environment_from_process_env();
     let mut checks: Vec<Arc<dyn ReadinessCheck>> = Vec::new();
 
-    if let Some(pool) = resolve_iam_auth_pool_from_env().await {
+    if let Some(pool) = resolve_iam_postgres_pool_from_env().await {
         checks.push(Arc::new(PgPoolReadinessCheck { pool, label: "iam" }));
     }
 

@@ -13,6 +13,8 @@ path = "src/main.rs"
 axum.workspace = true
 im-domain-core.workspace = true
 sdkwork-api-im-assembly.workspace = true
+conversation-runtime.workspace = true
+social-service = { path = "../../services/social-service" }
 im-adapters-postgres-journal.workspace = true
 im-adapters-redis-cache.workspace = true
 sdkwork_web_bootstrap.workspace = true

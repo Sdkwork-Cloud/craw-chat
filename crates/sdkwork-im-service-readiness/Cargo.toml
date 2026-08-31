@@ -8,10 +8,10 @@ description = "Shared dependency-aware readiness probes for Sdkwork IM HTTP serv
 [dependencies]
 im-app-context = { path = "../im-app-context" }
 sdkwork_database_sqlx = { workspace = true }
+sdkwork_iam_web_adapter = { workspace = true }
 sdkwork_im_database_pool = { workspace = true }
 sdkwork_web_bootstrap = { workspace = true, features = ["otel"] }
 sdkwork_web_core = { workspace = true }
-session-gateway = { path = "../../services/session-gateway" }
 redis = { version = "0.27", features = ["tokio-comp"] }
 native-tls = "0.2"
 postgres = { version = "0.19.13", features = ["with-chrono-0_4", "with-serde_json-1"] }
