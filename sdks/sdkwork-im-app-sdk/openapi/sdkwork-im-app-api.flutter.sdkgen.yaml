@@ -23,7 +23,7 @@ paths:
     post:
       tags:
         - automation
-      operationId: automation.agentResponses.create
+      operationId: agentResponses.create
       summary: Start an agent response stream
       requestBody:
         required: true
@@ -100,11 +100,12 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/automation/agent_responses/{streamId}/complete:
     post:
       tags:
         - automation
-      operationId: automation.agentResponses.complete
+      operationId: agentResponses.complete
       summary: Complete an agent response stream
       parameters:
         - $ref: '#/components/parameters/StreamIdPath'
@@ -187,7 +188,7 @@ paths:
     post:
       tags:
         - automation
-      operationId: automation.agentResponses.frames.create
+      operationId: agentResponses.frames.create
       summary: Append a frame to an agent response stream
       parameters:
         - $ref: '#/components/parameters/StreamIdPath'
@@ -270,7 +271,7 @@ paths:
     post:
       tags:
         - automation
-      operationId: automation.agentToolCalls.create
+      operationId: agentToolCalls.create
       summary: Request an agent tool call
       requestBody:
         required: true
@@ -347,11 +348,12 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/automation/executions:
     post:
       tags:
         - automation
-      operationId: automation.executions.create
+      operationId: executions.create
       summary: Request an automation execution
       requestBody:
         required: true
@@ -422,11 +424,12 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/automation/executions/{executionId}:
     get:
       tags:
         - automation
-      operationId: automation.executions.retrieve
+      operationId: executions.retrieve
       summary: Get an automation execution
       parameters:
         - $ref: '#/components/parameters/ExecutionIdPath'
@@ -485,7 +488,7 @@ paths:
     post:
       tags:
         - automation
-      operationId: automation.agentToolCalls.complete
+      operationId: agentToolCalls.complete
       summary: Complete an agent tool call
       parameters:
         - $ref: '#/components/parameters/ExecutionIdPath'
@@ -569,7 +572,7 @@ paths:
     get:
       tags:
         - notifications
-      operationId: notifications.list
+      operationId: list
       summary: List notifications for the current principal
       parameters:
         - name: page_size
@@ -640,7 +643,7 @@ paths:
     post:
       tags:
         - notifications
-      operationId: notifications.requests.create
+      operationId: requests.create
       summary: Request a notification task
       requestBody:
         required: true
@@ -711,11 +714,12 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/notifications/{notificationId}:
     get:
       tags:
         - notifications
-      operationId: notifications.retrieve
+      operationId: retrieve
       summary: Get a notification task
       parameters:
         - $ref: '#/components/parameters/NotificationIdPath'
@@ -824,6 +828,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/automation:
     get:
       tags:
@@ -869,6 +874,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/conversations:
     get:
       tags:
@@ -914,6 +920,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/dashboard:
     get:
       tags:
@@ -959,6 +966,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/governance:
     get:
       tags:
@@ -1007,6 +1015,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/home:
     get:
       tags:
@@ -1052,6 +1061,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/media:
     get:
       tags:
@@ -1097,6 +1107,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/realtime:
     get:
       tags:
@@ -1142,6 +1153,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/portal/workspace:
     get:
       tags:
@@ -1187,6 +1199,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/media/provider_health:
     get:
       tags:
@@ -1239,6 +1252,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/principal/profiles/provider_health:
     get:
       tags:
@@ -1291,6 +1305,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: app-api
+      parameters: []
   /app/v3/api/chat/conversations/{conversationId}/knowledgebase:
     get:
       tags:

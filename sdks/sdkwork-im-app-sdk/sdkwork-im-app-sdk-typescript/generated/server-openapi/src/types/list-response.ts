@@ -1,7 +1,7 @@
 import type { NotificationTask } from './notification-task';
 import type { PageInfo } from './page-info';
 
-export interface NotificationsListResponse {
+export interface ListResponse {
   code: 0;
   data: unknown & { items: NotificationTask[]; pageInfo: PageInfo; };
   /** Server-owned request correlation id. */

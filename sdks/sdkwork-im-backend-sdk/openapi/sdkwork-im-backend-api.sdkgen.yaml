@@ -69,6 +69,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/ops/cluster:
     get:
       tags:
@@ -121,6 +122,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/ops/lag:
     get:
       tags:
@@ -221,6 +223,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/ops/runtime_dir:
     get:
       tags:
@@ -273,6 +276,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/ops/provider_bindings:
     get:
       tags:
@@ -421,6 +425,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/ops/replay_status:
     get:
       tags:
@@ -476,6 +481,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/ops/retention/purge:
     post:
       tags:
@@ -490,10 +496,11 @@ paths:
           in: query
           required: false
           schema:
-            type: integer
+            type: string
             format: int64
             minimum: 1
             maximum: 5000
+            x-sdkwork-int64-string: true
       responses:
         '200':
           description: OK
@@ -636,6 +643,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/audit/export:
     get:
       tags:
@@ -688,6 +696,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/audit/verify:
     get:
       tags:
@@ -740,6 +749,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/automation/governance:
     get:
       tags:
@@ -792,6 +802,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/nodes/{nodeId}/activate:
     post:
       operationId: nodes.activate
@@ -1096,6 +1107,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/protocol_registry:
     get:
       operationId: protocolRegistry.retrieve
@@ -1165,6 +1177,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/provider_policies:
     get:
       operationId: providerPolicies.list
@@ -1385,6 +1398,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/provider_policies/rollback:
     post:
       operationId: providerPolicies.rollback
@@ -1461,6 +1475,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/provider_registry:
     get:
       operationId: providerRegistry.retrieve
@@ -1530,6 +1545,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/provider_bindings:
     get:
       operationId: control.providerBindings.list
@@ -1673,6 +1689,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/direct_chats/bindings:
     post:
       operationId: social.directChats.bindings.create
@@ -1749,6 +1766,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/direct_chats/{directChatId}:
     get:
       operationId: social.directChats.retrieve
@@ -1901,6 +1919,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/external_connections/{connectionId}:
     get:
       operationId: social.externalConnections.retrieve
@@ -2053,6 +2072,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/external_member_links/{linkId}:
     get:
       operationId: social.externalMemberLinks.retrieve
@@ -2205,6 +2225,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/friend_requests/{requestId}:
     get:
       operationId: social.friendRequests.retrieve
@@ -2606,6 +2627,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/friendships/{friendshipId}:
     get:
       operationId: social.friendships.retrieve
@@ -2841,6 +2863,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync:
     get:
       operationId: social.runtime.deadLetterSharedChannelSync.list
@@ -3158,6 +3181,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/runtime/release_pending_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.releasePendingSharedChannelSyncTargeted.create
@@ -3234,6 +3258,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/runtime/repair_derived_snapshot:
     post:
       operationId: social.runtime.repairDerivedSnapshot.create
@@ -3303,6 +3328,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/runtime/repair_shared_channel_sync:
     post:
       operationId: social.runtime.repairSharedChannelSync.create
@@ -3372,6 +3398,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.republishPendingSharedChannelSyncTargeted.create
@@ -3448,6 +3475,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync:
     post:
       operationId: social.runtime.requeueDeadLetterSharedChannelSync.create
@@ -3517,6 +3545,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.requeueDeadLetterSharedChannelSyncTargeted.create
@@ -3593,6 +3622,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.takeoverPendingSharedChannelSyncTargeted.create
@@ -3669,6 +3699,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/shared_channel_policies:
     post:
       operationId: social.sharedChannelPolicies.create
@@ -3745,6 +3776,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/shared_channel_policies/{policyId}:
     get:
       operationId: social.sharedChannelPolicies.retrieve
@@ -3897,6 +3929,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/control/social/user_blocks/{blockId}:
     get:
       operationId: social.userBlocks.retrieve
@@ -4049,6 +4082,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/api_key_groups/{groupId}:
     patch:
       operationId: apiKeyGroups.update
@@ -4094,6 +4128,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
     delete:
       operationId: apiKeyGroups.delete
       tags:
@@ -4122,6 +4157,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/api_key_groups/{groupId}/status:
     post:
       operationId: apiKeyGroups.status
@@ -4167,6 +4203,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/api_keys:
     get:
       operationId: apiKeys.list
@@ -4243,6 +4280,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/api_keys/{hashedKey}:
     put:
       operationId: apiKeys.update
@@ -4288,6 +4326,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
     delete:
       operationId: apiKeys.delete
       tags:
@@ -4316,6 +4355,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/api_keys/{hashedKey}/status:
     post:
       operationId: apiKeys.status
@@ -4361,6 +4401,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/billing/events:
     get:
       operationId: billing.events.list
@@ -4432,6 +4473,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/billing/summary:
     get:
       operationId: billing.summary.retrieve
@@ -4471,6 +4513,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/channel_models:
     get:
       operationId: channelModels.list
@@ -4547,6 +4590,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/channel_models/{channelId}/models/{modelId}:
     delete:
       operationId: channelModels.models.delete
@@ -4576,6 +4620,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/channels:
     get:
       operationId: channels.list
@@ -4652,6 +4697,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/channels/{channelId}:
     delete:
       operationId: channels.delete
@@ -4681,6 +4727,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/credentials:
     get:
       operationId: credentials.list
@@ -4757,6 +4804,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/credentials/{tenantId}/providers/{providerId}/keys/{keyReference}:
     delete:
       operationId: credentials.providers.keys.delete
@@ -4786,6 +4834,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/extensions/runtime_reloads:
     post:
       operationId: extensions.runtimeReloads.create
@@ -4831,6 +4880,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/extensions/runtime_statuses:
     get:
       operationId: extensions.runtimeStatuses.list
@@ -4939,6 +4989,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/gateway/rate_limit_windows:
     get:
       operationId: gateway.rateLimitWindows.list
@@ -5047,6 +5098,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/marketing/campaigns/{marketingCampaignId}/status:
     post:
       operationId: marketing.campaigns.status
@@ -5092,6 +5144,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/model_prices:
     get:
       operationId: modelPrices.list
@@ -5168,6 +5221,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/model_prices/{channelId}/models/{modelId}/providers/{proxyProviderId}:
     delete:
       operationId: modelPrices.models.providers.delete
@@ -5197,6 +5251,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/models:
     get:
       operationId: models.list
@@ -5273,6 +5328,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/models/{externalName}/providers/{providerId}:
     delete:
       operationId: models.providers.delete
@@ -5302,6 +5358,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/providers:
     get:
       operationId: providers.list
@@ -5378,6 +5435,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/providers/{providerId}:
     delete:
       operationId: providers.delete
@@ -5407,6 +5465,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/routing/decision_logs:
     get:
       operationId: routing.decisionLogs.list
@@ -5478,6 +5537,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/routing/profiles:
     get:
       operationId: routing.profiles.list
@@ -5554,6 +5614,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/routing/snapshots:
     get:
       operationId: routing.snapshots.list
@@ -5657,6 +5718,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
     post:
       operationId: storage.config.create
       tags:
@@ -5701,6 +5763,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/storage/config/tenants/{tenantId}:
     get:
       operationId: storage.config.tenants.retrieve
@@ -5740,6 +5803,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
     post:
       operationId: storage.config.tenants.create
       tags:
@@ -5784,6 +5848,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
     delete:
       operationId: storage.config.tenants.delete
       tags:
@@ -5812,6 +5877,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/storage/effective/tenants/{tenantId}:
     get:
       operationId: storage.effective.tenants.retrieve
@@ -5851,6 +5917,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/storage/providers:
     get:
       operationId: storage.providers.list
@@ -5928,6 +5995,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/storage/validate/tenants/{tenantId}:
     post:
       operationId: storage.validation.tenants.create
@@ -5973,6 +6041,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
   /backend/v3/api/admin/usage/records:
     get:
       operationId: usage.records.list
@@ -6044,6 +6113,7 @@ paths:
       x-sdkwork-api-authority: sdkwork-im.backend
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: backend-api
+      parameters: []
 components:
   securitySchemes:
     AuthToken:
@@ -6190,9 +6260,10 @@ components:
           type: string
           format: date-time
         total:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         chainHeadHash:
           type: string
           nullable: true
@@ -6224,14 +6295,16 @@ components:
         journalReady:
           type: boolean
         totalCommits:
-          type: integer
+          type: string
           format: int64
           minimum: 0
           nullable: true
+          x-sdkwork-int64-string: true
         headCommitOffset:
-          type: integer
+          type: string
           format: int64
           nullable: true
+          x-sdkwork-int64-string: true
         latestOccurredAt:
           type: string
           format: date-time
@@ -6253,44 +6326,54 @@ components:
           type: string
           format: date-time
         batchSize:
-          type: integer
+          type: string
           format: int64
+          x-sdkwork-int64-string: true
         commitJournalDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         conversationMessagesDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         messageMediaRefsDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         outboxEventsDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         inboxEventsDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         realtimeDeviceEventsDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         rtcSessionsDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         invitationsDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
         auditRecordsDeleted:
-          type: integer
+          type: string
           format: int64
           minimum: 0
+          x-sdkwork-int64-string: true
     ActivateFriendshipRequest:
       additionalProperties: false
       properties:

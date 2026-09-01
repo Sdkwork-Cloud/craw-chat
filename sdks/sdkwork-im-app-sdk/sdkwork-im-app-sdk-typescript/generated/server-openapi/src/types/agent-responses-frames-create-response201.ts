@@ -1,6 +1,6 @@
 import type { StreamFrame } from './stream-frame';
 
-export interface AutomationAgentResponsesFramesCreateResponse201 {
+export interface AgentResponsesFramesCreateResponse201 {
   code: 0;
   data: unknown & { item: StreamFrame; };
   /** Server-owned request correlation id. */

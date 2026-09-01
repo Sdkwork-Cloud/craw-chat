@@ -1,6 +1,6 @@
 import type { AgentToolCall } from './agent-tool-call';
 
-export interface AutomationAgentToolCallsCompleteResponse {
+export interface AgentToolCallsCreateResponse201 {
   code: 0;
   data: unknown & { item: AgentToolCall; };
   /** Server-owned request correlation id. */

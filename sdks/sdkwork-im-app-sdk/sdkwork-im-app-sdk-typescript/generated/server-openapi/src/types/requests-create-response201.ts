@@ -1,6 +1,6 @@
 import type { NotificationRequestResponse } from './notification-request-response';
 
-export interface NotificationsRequestsCreateResponse201 {
+export interface RequestsCreateResponse201 {
   code: 0;
   data: unknown & { item: NotificationRequestResponse; };
   /** Server-owned request correlation id. */

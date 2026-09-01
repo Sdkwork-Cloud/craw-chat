@@ -101,7 +101,7 @@ export type { ProtocolRegistryRetrieveResponse } from './protocol-registry-retri
 export type { ProviderPoliciesPreviewResponse } from './provider-policies-preview-response';
 export type { ProviderPoliciesRollbackResponse } from './provider-policies-rollback-response';
 export type { ProviderRegistryRetrieveResponse } from './provider-registry-retrieve-response';
-export type { ControlProviderBindingsCreateResponse201 } from './control-provider-bindings-create-response201';
+export type { ProviderBindingsCreateResponse201 } from './provider-bindings-create-response201';
 export type { SocialDirectChatsBindingsCreateResponse201 } from './social-direct-chats-bindings-create-response201';
 export type { SocialDirectChatsRetrieveResponse } from './social-direct-chats-retrieve-response';
 export type { SocialExternalConnectionsCreateResponse201 } from './social-external-connections-create-response201';
