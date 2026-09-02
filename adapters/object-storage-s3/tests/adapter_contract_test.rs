@@ -26,10 +26,7 @@ fn test_volcengine_s3_adapter_exposes_expected_contract_shape() {
     assert_eq!(descriptor.plugin_id, VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID);
     assert_eq!(descriptor.domain, ProviderDomain::ObjectStorage);
     assert_eq!(descriptor.provider_kind, "volcengine");
-    assert_eq!(
-        descriptor.required_capabilities,
-        vec!["s3", "presign"]
-    );
+    assert_eq!(descriptor.required_capabilities, vec!["s3", "presign"]);
 
     // Server-side put_object is intentionally fail-closed: the production
     // data path uploads through SigV4-presigned URLs (signed_upload_url), so

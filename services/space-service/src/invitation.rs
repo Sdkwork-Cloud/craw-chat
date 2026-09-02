@@ -21,8 +21,8 @@ use crate::http::AppState;
 use crate::id::next_entity_id;
 use crate::list_query::{ListQuery, resolve_keyset_page};
 use crate::space_access::{
-    actor_can_manage_space, ensure_user_not_banned_in_space, load_space, normalize_space_member_role,
-    parse_entity_id, parse_space_id,
+    actor_can_manage_space, ensure_user_not_banned_in_space, load_space,
+    normalize_space_member_role, parse_entity_id, parse_space_id,
 };
 
 /// Retention window for terminal invitations that carry invitee contact data
@@ -100,7 +100,9 @@ fn validate_invitation_contacts(request: &CreateInvitationRequest) -> Result<(),
         .filter(|value| !value.is_empty())
     {
         if !email.contains('@') || email.chars().any(char::is_whitespace) {
-            return Err(ApiProblem::bad_request("invitee_email is not a valid email address"));
+            return Err(ApiProblem::bad_request(
+                "invitee_email is not a valid email address",
+            ));
         }
     }
     if let Some(phone) = request
@@ -127,9 +129,8 @@ fn validate_invitation_expiry(expires_at: Option<&str>) -> Result<(), ApiProblem
     let Some(expires_at) = expires_at.map(str::trim).filter(|value| !value.is_empty()) else {
         return Ok(());
     };
-    let parsed = chrono::DateTime::parse_from_rfc3339(expires_at).map_err(|_| {
-        ApiProblem::bad_request("expires_at must be an RFC3339 timestamp")
-    })?;
+    let parsed = chrono::DateTime::parse_from_rfc3339(expires_at)
+        .map_err(|_| ApiProblem::bad_request("expires_at must be an RFC3339 timestamp"))?;
     if parsed.with_timezone(&chrono::Utc) <= chrono::Utc::now() {
         return Err(ApiProblem::bad_request("expires_at must be in the future"));
     }

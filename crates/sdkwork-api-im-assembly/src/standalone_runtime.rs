@@ -164,12 +164,9 @@ fn sample_outbox_lag(
             aggregate_type,
             OPS_OUTBOX_LAG_SCOPE_LIMIT,
         )? {
-            if !scopes
-                .iter()
-                .any(|(existing_tenant, existing_org)| {
-                    existing_tenant == &tenant_id && existing_org == &organization_id
-                })
-            {
+            if !scopes.iter().any(|(existing_tenant, existing_org)| {
+                existing_tenant == &tenant_id && existing_org == &organization_id
+            }) {
                 scopes.push((tenant_id, organization_id));
             }
         }
@@ -198,7 +195,12 @@ fn sample_outbox_lag(
     ops_runtime.upsert_lag_items(items);
     ops_runtime.update_side_effect_outboxes(vec![SideEffectOutboxDiagnosticsView {
         name: "outbox".to_owned(),
-        status: if pending_total == 0 { "idle" } else { "pending" }.to_owned(),
+        status: if pending_total == 0 {
+            "idle"
+        } else {
+            "pending"
+        }
+        .to_owned(),
         pending_count: pending_total,
         delivered_count: 0,
         failed_attempt_count: 0,

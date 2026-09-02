@@ -13,4 +13,3 @@ pub fn try_apply_social_commits_to_conversation_state(envelopes: &[CommitEnvelop
         try_apply_social_commit_to_conversation_state(envelope);
     }
 }
-

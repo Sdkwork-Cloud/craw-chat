@@ -42,8 +42,9 @@ pub fn resolve_social_commit_journal_from_env() -> Result<PostgresCommitJournal,
         return Err("social runtime requires PostgreSQL; SQLite is client-local only".to_owned());
     }
 
-    let pool = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool()
-        .ok_or_else(|| "social runtime requires the installed process PostgreSQL pool".to_owned())?;
+    let pool = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool().ok_or_else(|| {
+        "social runtime requires the installed process PostgreSQL pool".to_owned()
+    })?;
     let journal = PostgresCommitJournal::from_pool(PostgresJournalPool::from_pool(pool));
     info!("social-runtime using postgres commit journal");
     Ok(journal)

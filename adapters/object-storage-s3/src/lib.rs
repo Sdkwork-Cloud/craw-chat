@@ -299,11 +299,12 @@ impl S3CompatibleObjectStorageProvider {
             )));
         }
         if let Some(expected) = expected_content_type_for_key(object_key)
-            && bare != expected {
-                return Err(ContractError::Invalid(format!(
-                    "content_type {bare} does not match extension of object key {object_key} (expected {expected})"
-                )));
-            }
+            && bare != expected
+        {
+            return Err(ContractError::Invalid(format!(
+                "content_type {bare} does not match extension of object key {object_key} (expected {expected})"
+            )));
+        }
         Ok(())
     }
 }

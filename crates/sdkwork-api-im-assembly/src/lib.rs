@@ -2,8 +2,8 @@
 //! Application bootstrap lives in `bootstrap.rs`; route inventory is in `assembly-manifest.json`.
 // SDKWORK-ASSEMBLY-LIB-CUSTOM
 
-mod bootstrap;
 mod automation_agent_bridge;
+mod bootstrap;
 mod conversation_outbox_relay;
 mod embedded_dependency_routes;
 mod generated;
@@ -15,11 +15,11 @@ mod social_realtime_wiring;
 mod space_conversation_wiring;
 mod standalone_runtime;
 
+pub use automation_agent_bridge::{AutomationAgentBridgeHandle, spawn_automation_agent_bridge};
 pub use bootstrap::{
     ApiAssembly, ApiAssemblyRuntime, assemble_api_router,
-    assemble_api_router_with_realtime_bootstrap,
+    assemble_api_router_with_realtime_bootstrap, web_module, web_module_with_realtime_bootstrap,
 };
-pub use automation_agent_bridge::{AutomationAgentBridgeHandle, spawn_automation_agent_bridge};
 pub use conversation_outbox_relay::{
     ConversationOutboxRelayHandle, spawn_conversation_outbox_relay_from_env,
 };

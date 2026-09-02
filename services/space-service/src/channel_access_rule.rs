@@ -73,7 +73,10 @@ fn normalize_permission(permission: &str) -> Result<String, ApiProblem> {
         // message access follows conversation membership.
         "view" | "manage" => Ok(permission.to_owned()),
         "send" => {
-            tracing::warn!(permission = permission, "channel access send permission is not enforced");
+            tracing::warn!(
+                permission = permission,
+                "channel access send permission is not enforced"
+            );
             Err(ApiProblem::bad_request(
                 "channel access send permission is not supported; message access follows conversation membership",
             ))

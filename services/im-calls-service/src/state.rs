@@ -587,12 +587,13 @@ impl CallingRuntime {
         recipient_principal_ids: Vec<String>,
     ) {
         if !recipient_principal_ids.is_empty()
-            && let Some(object) = payload.as_object_mut() {
-                object.insert(
-                    "recipient_principal_ids".to_string(),
-                    serde_json::json!(recipient_principal_ids),
-                );
-            }
+            && let Some(object) = payload.as_object_mut()
+        {
+            object.insert(
+                "recipient_principal_ids".to_string(),
+                serde_json::json!(recipient_principal_ids),
+            );
+        }
 
         if im_domain_core::rtc_outbox::resolve_rtc_outbox_recipients(event_type, &payload)
             .is_empty()

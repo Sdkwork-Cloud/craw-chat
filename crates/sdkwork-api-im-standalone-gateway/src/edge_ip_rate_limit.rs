@@ -35,7 +35,8 @@ const DEFAULT_RATE_LIMIT_RPM: u32 = 600;
 const DEFAULT_RATE_LIMIT_BURST: u32 = 50;
 const DEFAULT_RATE_LIMIT_MAX_ENTRIES: usize = 5_000;
 
-const RATE_LIMIT_EXEMPT_PREFIXES: [&str; 5] = ["/healthz", "/livez", "/readyz", "/metrics", "/openapi"];
+const RATE_LIMIT_EXEMPT_PREFIXES: [&str; 5] =
+    ["/healthz", "/livez", "/readyz", "/metrics", "/openapi"];
 
 #[derive(Clone)]
 pub struct EdgeIpRateLimiter {
@@ -46,11 +47,8 @@ impl EdgeIpRateLimiter {
     pub fn from_env() -> Self {
         let rpm = read_u32_env(RATE_LIMIT_RPM_ENV, DEFAULT_RATE_LIMIT_RPM).max(1);
         let burst = read_u32_env(RATE_LIMIT_BURST_ENV, DEFAULT_RATE_LIMIT_BURST).max(1);
-        let max_entries = read_usize_env(
-            RATE_LIMIT_MAX_ENTRIES_ENV,
-            DEFAULT_RATE_LIMIT_MAX_ENTRIES,
-        )
-        .max(1);
+        let max_entries =
+            read_usize_env(RATE_LIMIT_MAX_ENTRIES_ENV, DEFAULT_RATE_LIMIT_MAX_ENTRIES).max(1);
         // Sustained tokens refill per second; a 1-request minimum keeps the
         // bucket moving even for very low RPM configurations.
         let refill_per_sec = (rpm / 60).max(1);
@@ -71,10 +69,7 @@ impl EdgeIpRateLimiter {
             Ok(mut limiter) => limiter.check_rate(client_ip, "edge").is_ok(),
             Err(poisoned) => {
                 tracing::warn!("recovering poisoned edge IP rate limiter lock");
-                poisoned
-                    .into_inner()
-                    .check_rate(client_ip, "edge")
-                    .is_ok()
+                poisoned.into_inner().check_rate(client_ip, "edge").is_ok()
             }
         }
     }

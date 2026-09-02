@@ -748,13 +748,15 @@ fn invitation_request(method: &str, uri: &str, body: &str, actor_user_id: &str) 
         trace_id: Some("trace-invitation".to_owned()),
         idempotency_key: None,
     });
-    request.extensions_mut().insert(im_app_context::local_service_app_context(
-        INVITE_TENANT,
-        actor_user_id,
-        "user",
-        None,
-        ["conversation.read"],
-    ));
+    request
+        .extensions_mut()
+        .insert(im_app_context::local_service_app_context(
+            INVITE_TENANT,
+            actor_user_id,
+            "user",
+            None,
+            ["conversation.read"],
+        ));
     request
 }
 

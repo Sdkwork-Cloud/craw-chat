@@ -65,7 +65,9 @@ impl MediaRuntime {
     ) -> Result<ProviderHealthSnapshot, MediaError> {
         let mut snapshot =
             ProviderHealthSnapshot::healthy("sdkwork-im-media", utc_now_rfc3339_millis());
-        snapshot.details.insert("tenantId".into(), tenant_id.to_owned());
+        snapshot
+            .details
+            .insert("tenantId".into(), tenant_id.to_owned());
         snapshot
             .details
             .insert("storageAuthority".into(), "sdkwork-drive".into());
@@ -78,9 +80,10 @@ impl MediaRuntime {
         snapshot
             .details
             .insert("uploadLifecycle".into(), "delegated-to-drive".into());
-        snapshot
-            .details
-            .insert("driveAvailability".into(), "not-verified-by-media-service".into());
+        snapshot.details.insert(
+            "driveAvailability".into(),
+            "not-verified-by-media-service".into(),
+        );
         Ok(snapshot)
     }
 }

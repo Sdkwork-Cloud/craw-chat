@@ -452,7 +452,7 @@ impl StreamingRuntime {
             next.updated_at = utc_now_rfc3339_millis();
             match self.store_result(self.state_store.transition_session(current.version, next))? {
                 StreamTransitionOutcome::Applied(record) => {
-                let record = *record;
+                    let record = *record;
                     return Ok(StreamSessionMutationOutcome {
                         session: record.session,
                         applied: true,

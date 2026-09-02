@@ -3496,9 +3496,9 @@ where
                     .roster
                     .resolve_current_member(principal_id)
                     .is_some()
-                {
-                    return Ok(());
-                }
+            {
+                return Ok(());
+            }
         }
         let Some(aggregate_store) = self.aggregate_store.as_ref() else {
             return Ok(());

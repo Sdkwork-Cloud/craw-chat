@@ -16,7 +16,9 @@ use im_postgres_realtime_contracts::{
 use im_time::utc_now_rfc3339_millis;
 use r2d2::PooledConnection;
 use sdkwork_im_contract_core::ContractError;
-use sdkwork_im_contract_notification::{GlobalNotificationTaskClaimRequest, NotificationTaskRecord, NotificationTaskStore};
+use sdkwork_im_contract_notification::{
+    GlobalNotificationTaskClaimRequest, NotificationTaskRecord, NotificationTaskStore,
+};
 
 use crate::error::NotificationError;
 

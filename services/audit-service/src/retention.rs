@@ -74,7 +74,10 @@ mod tests {
             audit_retention_class_for_action("control.provider_policy_committed"),
             AUDIT_RETENTION_CLASS_DEFAULT
         );
-        assert_eq!(audit_retention_class_for_action(""), AUDIT_RETENTION_CLASS_DEFAULT);
+        assert_eq!(
+            audit_retention_class_for_action(""),
+            AUDIT_RETENTION_CLASS_DEFAULT
+        );
     }
 
     #[test]

@@ -2,12 +2,12 @@
 
 use std::sync::Arc;
 
+use im_adapters_postgres_journal::PostgresCommitJournal;
 use im_adapters_social_postgres::governance_store::SpaceMemberRecord;
 use im_adapters_social_postgres::member_capacity::MemberInsertOutcome;
 use im_adapters_social_postgres::organization_store::{
     GroupMemberRecord, GroupRecord, SpaceRecord,
 };
-use im_adapters_postgres_journal::PostgresCommitJournal;
 use im_adapters_social_postgres::{
     SpaceMaterializationError, materialize_space_commits_on_transaction,
 };

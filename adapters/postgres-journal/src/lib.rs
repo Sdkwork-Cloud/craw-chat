@@ -24,7 +24,9 @@ pub use agent_integration_store::PostgresAgentIntegrationStore;
 pub use aggregate_store::PostgresAggregateStore;
 pub use automation_execution_store::PostgresAutomationExecutionStore;
 pub use im_platform_contracts::CommitJournalReplayCursor as JournalReplayCursor;
-pub use journal_repository::{CommitJournalReplayState, PostgresCommitJournal, JournalReplayStateRequest};
+pub use journal_repository::{
+    CommitJournalReplayState, JournalReplayStateRequest, PostgresCommitJournal,
+};
 pub use message_post_persistence::{
     PostgresDurableConversationEventWriter, PostgresDurableMessageMutationWriter,
     PostgresDurableMessagePostWriter,

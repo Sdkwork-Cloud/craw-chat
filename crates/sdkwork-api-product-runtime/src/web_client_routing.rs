@@ -82,10 +82,7 @@ mod tests {
             WebClient::H5
         );
         assert_eq!(
-            preferred_web_client(
-                Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
-                None
-            ),
+            preferred_web_client(Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"), None),
             WebClient::Pc
         );
         assert_eq!(preferred_web_client(None, None), WebClient::Pc);
@@ -127,11 +124,17 @@ mod tests {
     #[test]
     fn sec_ch_ua_mobile_marker_overrides_user_agent() {
         assert_eq!(
-            preferred_web_client(Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"), Some("?1")),
+            preferred_web_client(
+                Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
+                Some("?1")
+            ),
             WebClient::H5
         );
         assert_eq!(
-            preferred_web_client(Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"), Some("?0")),
+            preferred_web_client(
+                Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
+                Some("?0")
+            ),
             WebClient::Pc
         );
         assert_eq!(
@@ -152,12 +155,7 @@ mod tests {
             Some(WebClient::H5)
         );
         assert_eq!(
-            select_available_web_client(
-                Some("Windows NT"),
-                Some("?1"),
-                true,
-                false
-            ),
+            select_available_web_client(Some("Windows NT"), Some("?1"), true, false),
             Some(WebClient::Pc)
         );
         assert_eq!(select_available_web_client(None, None, false, false), None);

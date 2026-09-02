@@ -71,6 +71,7 @@ sdkwork-api-shop-assembly.workspace = true
 sdkwork-api-community-assembly.workspace = true
 sdkwork-community-service-host.workspace = true
 sdkwork-community-database-host.workspace = true
+sdkwork-community-feeds-community-embedded.workspace = true
 sdkwork-api-feeds-assembly.workspace = true
 sdkwork-feeds-service-host.workspace = true
 sdkwork-feeds-database-host.workspace = true

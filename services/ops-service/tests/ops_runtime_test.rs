@@ -156,9 +156,7 @@ fn test_ops_lag_upsert_merges_independent_sampler_families() {
     let realtime_scope = page
         .items
         .iter()
-        .find(|item| {
-            item.component == "realtime" && item.scope_id == "100001:user:42:device-a"
-        })
+        .find(|item| item.component == "realtime" && item.scope_id == "100001:user:42:device-a")
         .expect("realtime scope item must be refreshed");
     assert_eq!(realtime_scope.lag, 6);
     let outbox = page

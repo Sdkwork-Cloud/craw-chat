@@ -1124,9 +1124,7 @@ impl ConversationAggregateState {
             }
             ConversationLifecycleState::Archived => {
                 if archived_at.is_none() || archive_event_id.is_none() {
-                    return Err(
-                        "archived normalized conversation requires archive metadata".into(),
-                    );
+                    return Err("archived normalized conversation requires archive metadata".into());
                 }
             }
         }
@@ -1139,9 +1137,7 @@ impl ConversationAggregateState {
             return Err("agent handoff conversation requires normalized handoff state".into());
         }
         if self.scenario() != ConversationScenario::AgentHandoff && handoff_state.is_some() {
-            return Err(
-                "non-handoff conversation must not carry normalized handoff state".into(),
-            );
+            return Err("non-handoff conversation must not carry normalized handoff state".into());
         }
 
         self.archived_at = archived_at;

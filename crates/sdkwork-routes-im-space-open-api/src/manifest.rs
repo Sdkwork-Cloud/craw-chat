@@ -8,31 +8,11 @@ pub const API_SURFACE: &str = "open-api";
 
 pub const ROUTES: &[HttpRoute] = &[
     // Spaces
-    HttpRoute::api_key_or_dual_token(
-        HttpMethod::Post,
-        paths::SPACES,
-        "spaces",
-        "spaces.create",
-    ),
+    HttpRoute::api_key_or_dual_token(HttpMethod::Post, paths::SPACES, "spaces", "spaces.create"),
     HttpRoute::api_key_or_dual_token(HttpMethod::Get, paths::SPACES, "spaces", "spaces.list"),
-    HttpRoute::api_key_or_dual_token(
-        HttpMethod::Get,
-        paths::SPACE,
-        "spaces",
-        "spaces.retrieve",
-    ),
-    HttpRoute::api_key_or_dual_token(
-        HttpMethod::Patch,
-        paths::SPACE,
-        "spaces",
-        "spaces.update",
-    ),
-    HttpRoute::api_key_or_dual_token(
-        HttpMethod::Delete,
-        paths::SPACE,
-        "spaces",
-        "spaces.delete",
-    ),
+    HttpRoute::api_key_or_dual_token(HttpMethod::Get, paths::SPACE, "spaces", "spaces.retrieve"),
+    HttpRoute::api_key_or_dual_token(HttpMethod::Patch, paths::SPACE, "spaces", "spaces.update"),
+    HttpRoute::api_key_or_dual_token(HttpMethod::Delete, paths::SPACE, "spaces", "spaces.delete"),
     // Space members
     HttpRoute::api_key_or_dual_token(
         HttpMethod::Post,

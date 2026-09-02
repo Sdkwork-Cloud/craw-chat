@@ -228,11 +228,9 @@ impl ConversationStateService {
         }
         // Track access so idle conversations (and their derived indexes) can
         // be evicted; this keeps long-running processes bounded.
-        self.touch_conversation(scope_key_for_event_conversation(
-            event,
-            event.scope_id.as_str(),
-        ).as_str());
-        
+        self.touch_conversation(
+            scope_key_for_event_conversation(event, event.scope_id.as_str()).as_str(),
+        );
 
         match event.event_type.as_str() {
             "conversation.created" => self.apply_conversation_created(event),
@@ -268,11 +266,8 @@ impl ConversationStateService {
     /// Records conversation access so idle eviction can reclaim its indexes.
     pub(crate) fn touch_conversation(&self, scope_key: &str) {
         let now = monotonic_millis();
-        lock_conversation_state_mutex(
-            &self.conversation_last_access,
-            "conversation last access",
-        )
-        .insert(scope_key.to_owned(), now);
+        lock_conversation_state_mutex(&self.conversation_last_access, "conversation last access")
+            .insert(scope_key.to_owned(), now);
     }
 
     /// Evicts the least recently used conversations (and every derived index
@@ -314,10 +309,8 @@ impl ConversationStateService {
     }
 
     fn evict_conversation_scope(&self, scope_key_value: &str) {
-        lock_conversation_state_mutex(&self.entries, "entries evict")
-            .remove(scope_key_value);
-        lock_conversation_state_mutex(&self.summaries, "summaries evict")
-            .remove(scope_key_value);
+        lock_conversation_state_mutex(&self.entries, "entries evict").remove(scope_key_value);
+        lock_conversation_state_mutex(&self.summaries, "summaries evict").remove(scope_key_value);
         lock_conversation_state_mutex(&self.conversations, "conversations evict")
             .remove(scope_key_value);
         lock_conversation_state_mutex(&self.conversation_profiles, "profiles evict")
@@ -338,8 +331,11 @@ impl ConversationStateService {
             .remove(scope_key_value);
         // message_conversation_index maps message ids to conversations; drop
         // every entry whose conversation matches the evicted scope.
-        lock_conversation_state_mutex(&self.message_conversation_index, "message conversation index evict")
-            .retain(|_, conversation_id| conversation_id != scope_key_value);
+        lock_conversation_state_mutex(
+            &self.message_conversation_index,
+            "message conversation index evict",
+        )
+        .retain(|_, conversation_id| conversation_id != scope_key_value);
         // Delivery offers are keyed by `{scope_key}:{message_id}`; drop the
         // whole prefix range.
         lock_conversation_state_mutex(&self.message_delivery_offers, "delivery offers evict")

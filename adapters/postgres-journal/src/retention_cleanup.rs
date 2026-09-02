@@ -312,8 +312,11 @@ fn execute_audit_retention_delete(
     retention_class: &str,
     limit: i64,
 ) -> Result<u64, ContractError> {
-    txn.execute(PURGE_AUDIT_RECORDS_BY_CLASS_SQL, &[&limit, &retention_class])
-        .map_err(|error| postgres_unavailable("journal retention purge delete", error))
+    txn.execute(
+        PURGE_AUDIT_RECORDS_BY_CLASS_SQL,
+        &[&limit, &retention_class],
+    )
+    .map_err(|error| postgres_unavailable("journal retention purge delete", error))
 }
 
 #[cfg(test)]

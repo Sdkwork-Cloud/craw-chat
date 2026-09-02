@@ -300,9 +300,10 @@ fn invalid_parameter_response(ctx: &WebRequestContext, detail: impl Into<String>
         HeaderValue::from_static("application/problem+json"),
     );
     if let Ok(value) = HeaderValue::from_str(trace_id.as_str())
-        && let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes()) {
-            response.headers_mut().insert(header_name, value);
-        }
+        && let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes())
+    {
+        response.headers_mut().insert(header_name, value);
+    }
     response
 }
 
@@ -554,9 +555,9 @@ impl From<FriendRequest> for FriendRequestHttpView {
 /// friend request lists show names instead of raw user IDs. No-op when no
 /// profile store is configured (in-memory/control surfaces).
 pub(crate) fn enrich_friend_request_display(
-    profile_store: Option<&std::sync::Arc<
-        dyn im_adapters_social_postgres::user_profile_store::UserProfileStore,
-    >>,
+    profile_store: Option<
+        &std::sync::Arc<dyn im_adapters_social_postgres::user_profile_store::UserProfileStore>,
+    >,
     tenant_id: &str,
     organization_id: &str,
     items: &mut [FriendRequestHttpView],
@@ -773,8 +774,9 @@ pub(crate) struct SocialFriendshipSnapshotResponse {
 #[derive(Clone)]
 pub struct AppState {
     pub social_runtime: std::sync::Arc<SocialRuntime>,
-    pub user_profile_store:
-        Option<std::sync::Arc<dyn im_adapters_social_postgres::user_profile_store::UserProfileStore>>,
+    pub user_profile_store: Option<
+        std::sync::Arc<dyn im_adapters_social_postgres::user_profile_store::UserProfileStore>,
+    >,
 }
 
 // ---------------------------------------------------------------------------
@@ -2388,8 +2390,7 @@ impl SocialRuntime {
             "invalid_friend_request",
         )?;
 
-        self
-            .acquire_cross_instance_write_lock()
+        self.acquire_cross_instance_write_lock()
             .map_err(map_social_runtime_string_error)?;
         self.refresh_state_from_authority_for_write()
             .map_err(map_social_runtime_string_error)?;

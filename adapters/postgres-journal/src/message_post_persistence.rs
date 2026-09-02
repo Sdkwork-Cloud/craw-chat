@@ -1576,22 +1576,22 @@ fn validate_normalized_conversation_commit(
             || policy.history_visibility.trim().is_empty()
             || policy.retention_policy_ref.trim().is_empty()
             || policy.max_members.is_some_and(|value| value <= 0))
-        {
-            return Err(ContractError::Invalid(
-                "normalized conversation policy is invalid".into(),
-            ));
-        }
+    {
+        return Err(ContractError::Invalid(
+            "normalized conversation policy is invalid".into(),
+        ));
+    }
     if let Some(binding) = commit.business_binding.as_ref()
         && (binding.tenant_id != conversation.tenant_id
             || binding.organization_id != conversation.organization_id
             || binding.conversation_id != conversation.conversation_id
             || binding.business_type.trim().is_empty()
             || binding.business_id.trim().is_empty())
-        {
-            return Err(ContractError::Invalid(
-                "normalized conversation business binding is invalid".into(),
-            ));
-        }
+    {
+        return Err(ContractError::Invalid(
+            "normalized conversation business binding is invalid".into(),
+        ));
+    }
     if let Some(handoff) = commit.handoff.as_ref() {
         let actor_pair_is_valid = |kind: &Option<String>, id: &Option<String>| {
             kind.is_some() == id.is_some()
@@ -1642,11 +1642,11 @@ fn validate_normalized_conversation_commit(
                 .envelopes
                 .iter()
                 .any(|envelope| envelope.event_id == assignments.source_event_id))
-        {
-            return Err(ContractError::Invalid(
-                "normalized conversation agent assignment scope is invalid".into(),
-            ));
-        }
+    {
+        return Err(ContractError::Invalid(
+            "normalized conversation agent assignment scope is invalid".into(),
+        ));
+    }
     Ok(())
 }
 
@@ -1661,10 +1661,9 @@ fn persist_normalized_conversation_commit_txn(
         postgres_unavailable_db("persist_normalized_conversation_commit begin", error)
     })?;
     let normalized_state_applied = upsert_normalized_conversation_in_transaction(&mut txn, commit)?;
-    if normalized_state_applied
-        && let Some(assignments) = commit.agent_assignments.as_ref() {
-            replace_conversation_agents_in_transaction(&mut txn, assignments, id_generator)?;
-        }
+    if normalized_state_applied && let Some(assignments) = commit.agent_assignments.as_ref() {
+        replace_conversation_agents_in_transaction(&mut txn, assignments, id_generator)?;
+    }
     let mut positions = Vec::with_capacity(commit.envelopes.len());
     for envelope in &commit.envelopes {
         positions.push(

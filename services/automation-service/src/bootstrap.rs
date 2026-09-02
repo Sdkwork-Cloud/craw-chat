@@ -130,15 +130,14 @@ fn resolve_automation_execution_store_from_env(
 
 fn resolve_automation_commit_journal_from_env() -> Result<Arc<AutomationCommitJournal>, String> {
     if let Ok(config) = DatabaseConfig::from_env("IM")
-        && config.engine == DatabaseEngine::Postgres {
-            let journal = PostgresJournalConfig::from_database_config(&config)
-                .connect()
-                .map_err(|error| {
-                    format!("postgres automation journal bootstrap failed: {error:?}")
-                })?;
-            info!("automation-service using postgres commit journal");
-            return Ok(Arc::new(AutomationCommitJournal::Postgres(journal)));
-        }
+        && config.engine == DatabaseEngine::Postgres
+    {
+        let journal = PostgresJournalConfig::from_database_config(&config)
+            .connect()
+            .map_err(|error| format!("postgres automation journal bootstrap failed: {error:?}"))?;
+        info!("automation-service using postgres commit journal");
+        return Ok(Arc::new(AutomationCommitJournal::Postgres(journal)));
+    }
 
     if let Some(database_url) = resolve_im_database_url_from_env() {
         let journal = PostgresJournalConfig::new(database_url)
@@ -151,9 +150,7 @@ fn resolve_automation_commit_journal_from_env() -> Result<Arc<AutomationCommitJo
     let environment = resolve_web_environment_from_process_env();
     if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
         info!("automation-service using in-memory commit journal (development only)");
-        return Ok(Arc::new(AutomationCommitJournal::Memory(
-            NoopJournalForDev,
-        )));
+        return Ok(Arc::new(AutomationCommitJournal::Memory(NoopJournalForDev)));
     }
 
     Err(format!(

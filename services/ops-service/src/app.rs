@@ -43,10 +43,7 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         .route("/backend/v3/api/ops/health", get(get_ops_health))
         .route("/backend/v3/api/ops/cluster", get(get_cluster))
         .route("/backend/v3/api/ops/lag", get(get_lag))
-        .route(
-            "/backend/v3/api/ops/replay_status",
-            get(get_replay_status),
-        )
+        .route("/backend/v3/api/ops/replay_status", get(get_replay_status))
         .route("/backend/v3/api/ops/runtime_dir", get(get_runtime_dir))
         .route(
             "/backend/v3/api/ops/provider_bindings",

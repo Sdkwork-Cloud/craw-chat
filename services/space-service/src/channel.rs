@@ -19,8 +19,7 @@ use crate::id::next_entity_id;
 use crate::list_query::{ListQuery, resolve_keyset_page};
 use crate::space_access::{
     actor_can_manage_space, actor_can_read_space, enforce_channel_permission,
-    load_channel_in_space, load_space,
-    parse_entity_id, parse_space_id,
+    load_channel_in_space, load_space, parse_entity_id, parse_space_id,
 };
 
 #[derive(Debug, Deserialize)]

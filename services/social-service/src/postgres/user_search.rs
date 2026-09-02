@@ -59,7 +59,9 @@ pub async fn search_users(
         Err(_) => {
             return finish_api_json::<SdkWorkPageData<SocialUserSearchResult>>(
                 &ctx,
-                Err(ApiProblem::bad_request("page_size must be between 1 and 200")),
+                Err(ApiProblem::bad_request(
+                    "page_size must be between 1 and 200",
+                )),
             );
         }
     };

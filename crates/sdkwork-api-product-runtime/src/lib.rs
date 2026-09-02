@@ -518,12 +518,8 @@ fn select_request_site_dir<'a>(
         .h5_site_dir
         .as_deref()
         .is_some_and(site_index_html_exists);
-    let client = select_available_web_client(
-        user_agent,
-        sec_ch_ua_mobile,
-        pc_available,
-        h5_available,
-    )?;
+    let client =
+        select_available_web_client(user_agent, sec_ch_ua_mobile, pc_available, h5_available)?;
     let selected_dir = match client {
         WebClient::Pc => site_dir.pc_site_dir.as_path(),
         WebClient::H5 => site_dir.h5_site_dir.as_deref()?,
@@ -955,7 +951,9 @@ fn json_error_response(status: StatusCode, message: &str) -> Response {
     let result_code = match status {
         StatusCode::NOT_FOUND => sdkwork_utils_rust::SdkWorkResultCode::NotFound,
         StatusCode::BAD_GATEWAY => sdkwork_utils_rust::SdkWorkResultCode::BadGateway,
-        StatusCode::SERVICE_UNAVAILABLE => sdkwork_utils_rust::SdkWorkResultCode::ServiceUnavailable,
+        StatusCode::SERVICE_UNAVAILABLE => {
+            sdkwork_utils_rust::SdkWorkResultCode::ServiceUnavailable
+        }
         StatusCode::GATEWAY_TIMEOUT => sdkwork_utils_rust::SdkWorkResultCode::GatewayTimeout,
         StatusCode::METHOD_NOT_ALLOWED => sdkwork_utils_rust::SdkWorkResultCode::MethodNotAllowed,
         _ if status.is_client_error() => sdkwork_utils_rust::SdkWorkResultCode::MalformedRequest,
@@ -977,10 +975,9 @@ fn json_error_response(status: StatusCode, message: &str) -> Response {
         ))
         .expect("json proxy error response should build");
     if let Ok(value) = HeaderValue::from_str(&problem.trace_id) {
-        response.headers_mut().insert(
-            HeaderName::from_static("x-sdkwork-trace-id"),
-            value,
-        );
+        response
+            .headers_mut()
+            .insert(HeaderName::from_static("x-sdkwork-trace-id"), value);
     }
     response
 }
@@ -1105,7 +1102,10 @@ mod tests {
         for (name, value) in headers {
             request = request.header(*name, *value);
         }
-        request.send().await.expect("runtime request should succeed")
+        request
+            .send()
+            .await
+            .expect("runtime request should succeed")
     }
 
     fn response_header(response: &reqwest::Response, name: &str) -> Option<String> {
@@ -1376,7 +1376,10 @@ mod tests {
             base_url,
             "/",
             &[
-                (header::USER_AGENT.as_str(), "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
+                (
+                    header::USER_AGENT.as_str(),
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                ),
                 (SEC_CH_UA_MOBILE_HEADER, "?1"),
             ],
         )

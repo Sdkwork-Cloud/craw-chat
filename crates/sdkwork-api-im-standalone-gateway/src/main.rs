@@ -12,9 +12,9 @@ use sdkwork_api_im_assembly::{
 use sdkwork_api_product_runtime::{
     RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dir_from_env,
 };
-use sdkwork_web_axum::CanonicalCorsLayer;
-use sdkwork_web_bootstrap::{ComposedApiAssembly, WebFrameworkBuilder};
 use sdkwork_im_web_bootstrap::im_service_context_profile;
+use sdkwork_web_axum::CanonicalCorsLayer;
+use sdkwork_web_bootstrap::{ApiModuleRegistry, ComposedApiAssembly, WebFrameworkBuilder};
 
 const DEFAULT_BIND: &str = "127.0.0.1:18079";
 
@@ -134,7 +134,10 @@ async fn async_main(
     } = api_assembly;
     let mut contributions = vec![im_contribution, iam_contribution];
     contributions.append(&mut dependencies.contributions);
-    let composed = ComposedApiAssembly::try_compose("SDKWork IM Standalone API", contributions)
+    let mut module_registry = ApiModuleRegistry::new();
+    module_registry.add_modules(contributions);
+    let composed = module_registry
+        .try_compose("SDKWork IM Standalone API")
         .map_err(|error| format!("compose standalone API profile failed: {error}"))?;
     // The composed WebFramework defaults to a deny-all CORS policy; the
     // standalone profile reuses the canonical dev policy (loopback origins)

@@ -441,9 +441,11 @@ mod tests {
         let long = "x".repeat(12_500);
         let chunks = chunk_content(long.as_str());
         assert_eq!(chunks.len(), 3);
-        assert!(chunks
-            .iter()
-            .all(|chunk| chunk.len() <= BRIDGE_MAX_FRAME_CHARS));
+        assert!(
+            chunks
+                .iter()
+                .all(|chunk| chunk.len() <= BRIDGE_MAX_FRAME_CHARS)
+        );
         assert_eq!(chunks.concat().len(), 12_500);
         assert!(chunk_content("").is_empty());
     }

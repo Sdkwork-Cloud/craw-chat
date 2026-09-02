@@ -7,18 +7,8 @@ use crate::paths;
 pub const API_SURFACE: &str = "backend-api";
 
 pub const ROUTES: &[HttpRoute] = &[
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::PREFIX,
-        "audit",
-        "audit.prefix",
-    ),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::VERIFY,
-        "audit",
-        "verify.retrieve",
-    ),
+    HttpRoute::dual_token(HttpMethod::Get, paths::PREFIX, "audit", "audit.prefix"),
+    HttpRoute::dual_token(HttpMethod::Get, paths::VERIFY, "audit", "verify.retrieve"),
 ];
 
 pub fn route_manifest() -> HttpRouteManifest {

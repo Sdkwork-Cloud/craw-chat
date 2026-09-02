@@ -168,14 +168,14 @@ pub fn clear_conversation_retention_until(
             &[&tenant_id, &organization_id, &conversation_id],
         )
         .map_err(|error| postgres_unavailable("retention reconcile commit journal", error))?;
-    let outbox_events_cleared =
-        txn.execute(
+    let outbox_events_cleared = txn
+        .execute(
             CLEAR_OUTBOX_EVENTS_SQL,
             &[&tenant_id, &organization_id, &conversation_id],
         )
         .map_err(|error| postgres_unavailable("retention reconcile outbox", error))?;
-    let inbox_events_cleared =
-        txn.execute(
+    let inbox_events_cleared = txn
+        .execute(
             CLEAR_INBOX_EVENTS_SQL,
             &[&tenant_id, &organization_id, &conversation_id],
         )

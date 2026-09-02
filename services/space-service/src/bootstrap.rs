@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use im_adapters_postgres_journal::{PostgresCommitJournal, PostgresJournalPool};
+use im_adapters_social_postgres::SocialPostgresPool;
 use im_adapters_social_postgres::governance_store::{
     PostgresBanStore, PostgresChannelAccessRuleStore, PostgresInvitationStore,
     PostgresSpaceMemberStore,
@@ -11,7 +12,6 @@ use im_adapters_social_postgres::governance_store::{
 use im_adapters_social_postgres::organization_store::{
     PostgresChannelStore, PostgresGroupMemberStore, PostgresGroupStore, PostgresSpaceStore,
 };
-use im_adapters_social_postgres::SocialPostgresPool;
 
 use crate::http::{AppState, build_embedded_app, build_public_app};
 use crate::id::build_runtime_id_generator_for_space;
@@ -24,9 +24,8 @@ pub const DATABASE_URL_ENV: &str = "SDKWORK_DATABASE_URL";
 
 pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> AppState {
     let pool_arc = Arc::new(pool.inner().clone());
-    let journal = PostgresCommitJournal::from_pool(
-        PostgresJournalPool::from_pool(pool.inner().clone()),
-    );
+    let journal =
+        PostgresCommitJournal::from_pool(PostgresJournalPool::from_pool(pool.inner().clone()));
     let write_authority = Some(Arc::new(SpaceWriteAuthority::new(journal)));
     AppState {
         postgres_pool: Some(pool),

@@ -211,7 +211,9 @@ pub fn enforce_channel_permission(
                 permission,
                 "channel access rule denied member operation"
             );
-            Err(ApiProblem::forbidden("channel access rule forbids this operation"))
+            Err(ApiProblem::forbidden(
+                "channel access rule forbids this operation",
+            ))
         }
         Ok(
             im_adapters_social_postgres::governance_store::ChannelRuleDecision::Allow
@@ -225,9 +227,6 @@ pub fn enforce_channel_permission(
         }
     }
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -286,7 +285,12 @@ mod tests {
         ) -> Result<Vec<ChannelAccessRuleRecord>, ContractError> {
             Ok(Vec::new())
         }
-        fn delete(&self, _tenant_id: &str, _org_id: &str, _rule_id: i64) -> Result<(), ContractError> {
+        fn delete(
+            &self,
+            _tenant_id: &str,
+            _org_id: &str,
+            _rule_id: i64,
+        ) -> Result<(), ContractError> {
             Ok(())
         }
         fn effective_permission(
@@ -363,7 +367,12 @@ mod tests {
         fn insert(&self, _r: &SpaceRecord) -> Result<(), ContractError> {
             Ok(())
         }
-        fn get_by_id(&self, _t: &str, _o: &str, _s: i64) -> Result<Option<SpaceRecord>, ContractError> {
+        fn get_by_id(
+            &self,
+            _t: &str,
+            _o: &str,
+            _s: i64,
+        ) -> Result<Option<SpaceRecord>, ContractError> {
             Ok(None)
         }
         fn list_by_owner(
@@ -405,7 +414,12 @@ mod tests {
         ) -> Result<(), ContractError> {
             Ok(())
         }
-        fn get_by_id(&self, _t: &str, _o: &str, _g: i64) -> Result<Option<GroupRecord>, ContractError> {
+        fn get_by_id(
+            &self,
+            _t: &str,
+            _o: &str,
+            _g: i64,
+        ) -> Result<Option<GroupRecord>, ContractError> {
             Ok(None)
         }
         fn list_by_space(
@@ -541,7 +555,12 @@ mod tests {
         fn insert(&self, _r: &ChannelRecord) -> Result<(), ContractError> {
             Ok(())
         }
-        fn get_by_id(&self, _t: &str, _o: &str, _c: i64) -> Result<Option<ChannelRecord>, ContractError> {
+        fn get_by_id(
+            &self,
+            _t: &str,
+            _o: &str,
+            _c: i64,
+        ) -> Result<Option<ChannelRecord>, ContractError> {
             Ok(None)
         }
         fn list_by_space(
@@ -600,24 +619,28 @@ mod tests {
     #[test]
     fn owner_and_admin_bypass_deny_rules() {
         let owner_state = test_state(None, ChannelRuleDecision::Deny);
-        assert!(enforce_channel_permission(
-            &owner_state,
-            &test_auth("user-1"),
-            &test_space("user-1"),
-            7,
-            "manage",
-        )
-        .is_ok());
+        assert!(
+            enforce_channel_permission(
+                &owner_state,
+                &test_auth("user-1"),
+                &test_space("user-1"),
+                7,
+                "manage",
+            )
+            .is_ok()
+        );
 
         let admin_state = test_state(Some(member("admin")), ChannelRuleDecision::Deny);
-        assert!(enforce_channel_permission(
-            &admin_state,
-            &test_auth("user-2"),
-            &test_space("user-1"),
-            7,
-            "view",
-        )
-        .is_ok());
+        assert!(
+            enforce_channel_permission(
+                &admin_state,
+                &test_auth("user-2"),
+                &test_space("user-1"),
+                7,
+                "view",
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -642,14 +665,16 @@ mod tests {
     fn member_allow_rule_and_no_rule_permit_operation() {
         for decision in [ChannelRuleDecision::Allow, ChannelRuleDecision::NoRule] {
             let state = test_state(Some(member("member")), decision);
-            assert!(enforce_channel_permission(
-                &state,
-                &test_auth("user-2"),
-                &test_space("user-1"),
-                7,
-                "view",
-            )
-            .is_ok());
+            assert!(
+                enforce_channel_permission(
+                    &state,
+                    &test_auth("user-2"),
+                    &test_space("user-1"),
+                    7,
+                    "view",
+                )
+                .is_ok()
+            );
         }
     }
 }

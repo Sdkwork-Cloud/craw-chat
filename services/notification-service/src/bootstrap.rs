@@ -102,10 +102,10 @@ fn resolve_postgres_realtime_pool_from_env()
 -> Option<im_adapters_postgres_journal::PostgresJournalPool> {
     if let Ok(config) = DatabaseConfig::from_env("IM")
         && config.engine == DatabaseEngine::Postgres
-            && let Ok(journal) = PostgresJournalConfig::from_database_config(&config).connect_pool()
-            {
-                return Some(journal);
-            }
+        && let Ok(journal) = PostgresJournalConfig::from_database_config(&config).connect_pool()
+    {
+        return Some(journal);
+    }
     let database_url = resolve_im_database_url_from_env()?;
     PostgresJournalConfig::new(database_url).connect_pool().ok()
 }
@@ -186,15 +186,16 @@ fn resolve_notification_task_store_from_env(
 fn resolve_notification_commit_journal_from_env() -> Result<Arc<NotificationCommitJournal>, String>
 {
     if let Ok(config) = DatabaseConfig::from_env("IM")
-        && config.engine == DatabaseEngine::Postgres {
-            let journal = PostgresJournalConfig::from_database_config(&config)
-                .connect()
-                .map_err(|error| {
-                    format!("postgres notification journal bootstrap failed: {error:?}")
-                })?;
-            info!("notification-service using postgres commit journal");
-            return Ok(Arc::new(NotificationCommitJournal::Postgres(journal)));
-        }
+        && config.engine == DatabaseEngine::Postgres
+    {
+        let journal = PostgresJournalConfig::from_database_config(&config)
+            .connect()
+            .map_err(|error| {
+                format!("postgres notification journal bootstrap failed: {error:?}")
+            })?;
+        info!("notification-service using postgres commit journal");
+        return Ok(Arc::new(NotificationCommitJournal::Postgres(journal)));
+    }
 
     if let Some(database_url) = resolve_im_database_url_from_env() {
         let journal = PostgresJournalConfig::new(database_url)

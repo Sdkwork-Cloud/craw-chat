@@ -177,7 +177,8 @@ async fn list_contact_tags(
         };
         let contact_store = shared_contact_store();
         let store = contact_store.as_ref();
-        let (items, has_more) = backend_list_contact_tags(store, &auth, page_size, cursor.as_ref())?;
+        let (items, has_more) =
+            backend_list_contact_tags(store, &auth, page_size, cursor.as_ref())?;
         let next_cursor = if has_more {
             items
                 .last()

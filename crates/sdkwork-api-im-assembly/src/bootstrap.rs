@@ -9,7 +9,7 @@ use conversation_runtime::resolve_embedded_conversation_runtime;
 use ops_service::OpsRuntime;
 use portal_service::PortalRuntime;
 use sdkwork_web_bootstrap::{
-    ApiAssemblyContribution, CompositeReadinessCheck, ReadinessCheck, ReadinessFuture,
+    ApiAssemblyContribution, CompositeReadinessCheck, ReadinessCheck, ReadinessFuture, WebModule,
 };
 use sdkwork_web_core::HttpRouteManifest;
 use session_gateway::RealtimePlaneBootstrap;
@@ -264,6 +264,32 @@ fn resolve_embedded_social_postgres_pool()
 -> Result<im_adapters_social_postgres::SocialPostgresPool, String> {
     sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
         .map(im_adapters_social_postgres::SocialPostgresPool::new)
+}
+
+/// Canonical Web Module definition for this application
+/// (API_ASSEMBLY_SPEC §4.1.1): the complete HTTP surface — every route,
+/// manifest, and OpenAPI document of this owner — as one installable module.
+pub async fn web_module() -> Result<WebModule, String> {
+    Ok(WebModule::from_contribution(
+        assemble_api_router().await?.contribution,
+    ))
+}
+
+/// Installs the IM Web Module onto an explicit realtime plane and hands the
+/// retained assembly runtime back to the host (platform gateways,
+/// API_ASSEMBLY_SPEC §4.1.1).
+///
+/// The module owns the complete route definition; the runtime is transferred
+/// because IM background workers must be aborted when the host shuts down.
+/// Pass `None` to embed the in-memory default plane.
+pub async fn web_module_with_realtime_bootstrap(
+    realtime_bootstrap: Option<&RealtimePlaneBootstrap>,
+) -> Result<(WebModule, ApiAssemblyRuntime), String> {
+    let assembly = assemble_api_router_with_realtime_bootstrap(realtime_bootstrap).await?;
+    Ok((
+        WebModule::from_contribution(assembly.contribution),
+        assembly.runtime,
+    ))
 }
 
 #[cfg(test)]

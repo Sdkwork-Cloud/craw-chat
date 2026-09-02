@@ -8,12 +8,7 @@ pub const API_SURFACE: &str = "backend-api";
 
 pub const ROUTES: &[HttpRoute] = &[
     HttpRoute::dual_token(HttpMethod::Get, paths::HEALTH, "ops", "health.retrieve"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::CLUSTER,
-        "ops",
-        "cluster.retrieve",
-    ),
+    HttpRoute::dual_token(HttpMethod::Get, paths::CLUSTER, "ops", "cluster.retrieve"),
     HttpRoute::dual_token(HttpMethod::Get, paths::LAG, "ops", "lag.retrieve"),
     HttpRoute::dual_token(
         HttpMethod::Get,

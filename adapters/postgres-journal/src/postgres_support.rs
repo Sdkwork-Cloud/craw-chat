@@ -309,7 +309,6 @@ pub(crate) fn now_rfc3339() -> String {
     im_time::utc_now_rfc3339_millis()
 }
 
-
 /// Maps a postgres driver error to `Unavailable` while keeping the wrapped
 /// `ContractError` message generic (no driver/database details leak into the
 /// error surface). The log line uses `Debug` formatting: `tokio-postgres`

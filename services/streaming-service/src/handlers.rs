@@ -106,13 +106,14 @@ pub(crate) async fn list_stream_frames(
     let result = run_streaming_sync(move || {
         ensure_standalone_stream_session_allowed(&runtime, &auth, stream_id.as_str())?;
         if let Some(raw_page_size) = query.page_size
-            && !(1..=MAX_LIST_PAGE_SIZE).contains(&raw_page_size) {
-                Err(StreamingError {
-                    status: axum::http::StatusCode::BAD_REQUEST,
-                    code: "page_size_invalid",
-                    message: format!("page_size must be between 1 and {MAX_LIST_PAGE_SIZE}"),
-                })?;
-            }
+            && !(1..=MAX_LIST_PAGE_SIZE).contains(&raw_page_size)
+        {
+            Err(StreamingError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "page_size_invalid",
+                message: format!("page_size must be between 1 and {MAX_LIST_PAGE_SIZE}"),
+            })?;
+        }
         let paging = query.resolve().map_err(|_| StreamingError {
             status: axum::http::StatusCode::BAD_REQUEST,
             code: "cursor_invalid",

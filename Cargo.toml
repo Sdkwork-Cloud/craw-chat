@@ -285,9 +285,10 @@ sdkwork-shop-service-host = { path = "../sdkwork-shop/crates/sdkwork-shop-servic
 # sdkwork-community workspace. The standalone IM gateway embeds its App API
 # contribution in-process (APPLICATION_GATEWAY_SPEC platform consumer linking);
 # no HTTP proxying to an internal community port is used in standalone mode.
-sdkwork-api-community-assembly = { path = "../sdkwork-community/crates/sdkwork-api-community-assembly" }
+sdkwork-api-community-assembly = { path = "../sdkwork-community/crates/sdkwork-api-community-assembly", features = ["commerce-membership-embedded", "commerce-order-embedded"] }
 sdkwork-community-service-host = { path = "../sdkwork-community/crates/sdkwork-community-service-host" }
 sdkwork-community-service = { path = "../sdkwork-community/crates/sdkwork-community-service" }
+sdkwork-community-feeds-community-embedded = { path = "../sdkwork-community/crates/sdkwork-community-feeds-community-embedded" }
 sdkwork-community-storage-sqlx-rust = { path = "../sdkwork-community/crates/sdkwork-community-storage-sqlx-rust" }
 sdkwork-community-database-host = { path = "../sdkwork-community/crates/sdkwork-community-database-host" }
 sdkwork-community-core-rust = { path = "../sdkwork-community/crates/sdkwork-community-core-rust" }

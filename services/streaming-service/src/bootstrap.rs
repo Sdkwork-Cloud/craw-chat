@@ -65,25 +65,26 @@ pub fn default_app_state() -> AppState {
 
 fn resolve_stream_state_store_from_env() -> Result<Arc<dyn StreamStateStore>, String> {
     if let Ok(config) = DatabaseConfig::from_env("IM")
-        && config.engine == DatabaseEngine::Postgres {
-            match PostgresJournalConfig::from_database_config(&config).connect_pool() {
-                Ok(pool) => {
-                    info!("streaming-service using postgres stream state store");
-                    return Ok(Arc::new(PostgresStreamStateStore::from_pool(pool)));
-                }
-                Err(error) if allows_header_only_app_context_fallback() => {
-                    tracing::warn!(
-                        error = ?error,
-                        "postgres stream state store bootstrap failed; using in-memory fallback (development/test only)"
-                    );
-                }
-                Err(error) => {
-                    return Err(format!(
-                        "postgres stream state store bootstrap failed: {error:?}"
-                    ));
-                }
+        && config.engine == DatabaseEngine::Postgres
+    {
+        match PostgresJournalConfig::from_database_config(&config).connect_pool() {
+            Ok(pool) => {
+                info!("streaming-service using postgres stream state store");
+                return Ok(Arc::new(PostgresStreamStateStore::from_pool(pool)));
+            }
+            Err(error) if allows_header_only_app_context_fallback() => {
+                tracing::warn!(
+                    error = ?error,
+                    "postgres stream state store bootstrap failed; using in-memory fallback (development/test only)"
+                );
+            }
+            Err(error) => {
+                return Err(format!(
+                    "postgres stream state store bootstrap failed: {error:?}"
+                ));
             }
         }
+    }
 
     if let Some(database_url) = resolve_im_database_url_from_env() {
         match PostgresJournalConfig::new(database_url).connect_pool() {

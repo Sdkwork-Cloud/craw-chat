@@ -5882,6 +5882,8 @@ name = "sdkwork-api-community-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-community-commerce-membership-embedded",
+ "sdkwork-community-commerce-order-embedded",
  "sdkwork-community-service-host",
  "sdkwork-database-sqlx",
  "sdkwork-routes-community-app-api",
@@ -6066,6 +6068,7 @@ dependencies = [
  "sdkwork-catalog-database-host",
  "sdkwork-comms-conversation-service",
  "sdkwork-community-database-host",
+ "sdkwork-community-feeds-community-embedded",
  "sdkwork-community-service-host",
  "sdkwork-company-database-host",
  "sdkwork-content-feeds-service",
@@ -6525,6 +6528,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-community-commerce-membership-embedded"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-community-service",
+ "sdkwork-database-sqlx",
+ "sdkwork-membership-repository-sqlx",
+]
+
+[[package]]
+name = "sdkwork-community-commerce-order-embedded"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-community-service",
+ "sdkwork-database-sqlx",
+ "sdkwork-order-repository-sqlx",
+ "sdkwork-order-service",
+]
+
+[[package]]
 name = "sdkwork-community-core-rust"
 version = "0.1.0"
 
@@ -6537,6 +6559,18 @@ dependencies = [
  "sdkwork-database-lifecycle",
  "sdkwork-database-spi",
  "sdkwork-database-sqlx",
+]
+
+[[package]]
+name = "sdkwork-community-feeds-community-embedded"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-community-service",
+ "sdkwork-community-storage-sqlx-rust",
+ "sdkwork-content-feeds-core-rust",
+ "sdkwork-content-feeds-service",
+ "serde_json",
 ]
 
 [[package]]

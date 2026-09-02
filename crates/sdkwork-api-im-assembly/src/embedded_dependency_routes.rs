@@ -65,7 +65,6 @@ pub fn apply_embedded_dependency_env() -> Result<(), String> {
     apply_knowledgebase_runtime_env_from_im_shared_profile()?;
     apply_agents_runtime_env_from_im_shared_profile()?;
     apply_embedded_dependency_app_roots();
-    apply_embedded_commerce_backend_env();
     apply_embedded_feeds_env();
     Ok(())
 }
@@ -111,27 +110,6 @@ fn apply_embedded_feeds_env() {
 /// membership/order backend is configured. The standalone gateway serves the
 /// membership/order backend business surfaces in-process, so the community
 /// service reaches them through the gateway's own public origin.
-fn apply_embedded_commerce_backend_env() {
-    let Some(gateway_public_url) = std::env::var("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-    else {
-        return;
-    };
-    for key in [
-        "SDKWORK_MEMBERSHIP_BACKEND_API_BASE_URL",
-        "SDKWORK_ORDER_BACKEND_API_BASE_URL",
-    ] {
-        if std::env::var(key)
-            .ok()
-            .map(|value| value.trim().is_empty())
-            .unwrap_or(true)
-        {
-            set_env_var(key, gateway_public_url.as_str());
-        }
-    }
-}
-
 fn validate_workspace_server_database_env() -> Result<(), String> {
     let config = sdkwork_database_config::DatabaseConfig::from_env("IM")
         .map_err(|error| format!("resolve workspace database profile failed: {error}"))?;
@@ -224,11 +202,19 @@ pub async fn bootstrap_embedded_dependency_routes() -> Result<EmbeddedDependency
     // One community host serves both the App surface (circle read/write) and
     // the open surface (feed.public.list — the data source for the feeds
     // community adapter) from the same process database pool.
-    let community_host = Arc::new(
-        sdkwork_community_service_host::CommunityServiceHost::from_env()
+    // The community host is composed on the process-shared pool with the
+    // in-process commerce ports (APPLICATION_GATEWAY_SPEC §2.3): the embedded
+    // community service reaches membership and order through declared Rust
+    // ports wired by the composition root, never through HTTP requests back
+    // into this gateway's own listener.
+    let community_database =
+        sdkwork_community_database_host::bootstrap_community_database_with_seed_from_env()
             .await
-            .map_err(|error| format!("compose embedded community host failed: {error}"))?,
-    );
+            .map_err(|error| format!("bootstrap embedded community database failed: {error}"))?;
+    let community_host =
+        sdkwork_api_community_assembly::host_from_pool(community_database.pool().clone())
+            .await
+            .map_err(|error| format!("compose embedded community host failed: {error}"))?;
     let mut contributions = vec![
         bootstrap_embedded_account_contribution().await?,
         bootstrap_embedded_assets_contribution().await?,
@@ -292,10 +278,18 @@ async fn bootstrap_embedded_feeds_contribution(
             .map_err(|error| format!("compose embedded feeds service host failed: {error}"))?,
     );
 
-    if let Some(adapter) = sdkwork_feeds_source_community::CommunitySourceAdapter::from_env() {
-        host.register_source_adapter(Box::new(adapter));
-        tracing::info!("embedded feeds community source adapter registered (community.entry)");
-    }
+    // The community open surface is served in-process by this gateway, so the
+    // feeds community source adapter reads the domain through the embedded
+    // `CommunityService` instead of an HTTP base URL that would loop back into
+    // this listener (APPLICATION_GATEWAY_SPEC §2.3).
+    host.register_source_adapter(Box::new(
+        sdkwork_community_feeds_community_embedded::EmbeddedCommunitySourceAdapter::new(
+            community_host.service(),
+        ),
+    ));
+    tracing::info!(
+        "embedded feeds community source adapter registered (community.entry, in-process)"
+    );
     if let Some(adapter) = sdkwork_feeds_source_news::NewsSourceAdapter::from_env() {
         host.register_source_adapter(Box::new(adapter));
         tracing::info!("embedded feeds news source adapter registered (news.item)");
@@ -304,8 +298,8 @@ async fn bootstrap_embedded_feeds_contribution(
     // Ensure the standard streams exist (idempotent) so circle feeds and
     // moments never 404: one stream per circle (posts + resources) plus the
     // global moments stream.
-    let tenant_id = std::env::var("SDKWORK_FEEDS_DEFAULT_TENANT_ID")
-        .unwrap_or_else(|_| "100001".to_owned());
+    let tenant_id =
+        std::env::var("SDKWORK_FEEDS_DEFAULT_TENANT_ID").unwrap_or_else(|_| "100001".to_owned());
     ensure_feeds_streams(&host, &community_host, &tenant_id).await;
 
     // Background incremental sync (fallback to adapter-driven sync; 60s tick
@@ -343,7 +337,11 @@ async fn ensure_feeds_streams(
         feed_type: FeedType,
         title: &str,
     ) {
-        if feeds.retrieve_stream_by_key(tenant_id, stream_key).await.is_ok() {
+        if feeds
+            .retrieve_stream_by_key(tenant_id, stream_key)
+            .await
+            .is_ok()
+        {
             return;
         }
         match feeds
@@ -366,7 +364,14 @@ async fn ensure_feeds_streams(
         }
     }
 
-    ensure_stream(&feeds, tenant_id, "moments-global", FeedType::Moments, "朋友圈").await;
+    ensure_stream(
+        &feeds,
+        tenant_id,
+        "moments-global",
+        FeedType::Moments,
+        "朋友圈",
+    )
+    .await;
     match community_host.service().list_categories(tenant_id).await {
         Ok(circles) => {
             for circle in circles {

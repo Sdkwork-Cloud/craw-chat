@@ -186,7 +186,9 @@ impl StreamStateStore for FileStreamStateStore {
                     return;
                 }
                 records.sessions.insert(key, next_session.clone());
-                outcome = Some(StreamTransitionOutcome::Applied(Box::new(next_session.clone())));
+                outcome = Some(StreamTransitionOutcome::Applied(Box::new(
+                    next_session.clone(),
+                )));
             },
         )?;
         outcome
