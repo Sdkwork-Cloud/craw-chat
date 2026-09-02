@@ -1668,6 +1668,11 @@ fn parse_environment(value: Option<String>) -> WebEnvironment {
     {
         "dev" | "development" => WebEnvironment::Dev,
         "test" | "testing" => WebEnvironment::Test,
+        // Demo is an isolated showcase tier, not production-like: it gets the
+        // relaxed showcase posture instead of production assembly validation.
+        "demo" => WebEnvironment::Test,
+        // Staging/prod keep the strict fail-closed production posture.
+        "staging" | "prod" | "production" => WebEnvironment::Prod,
         _ => WebEnvironment::Prod,
     }
 }
