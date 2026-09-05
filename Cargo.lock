@@ -1352,7 +1352,7 @@ name = "cloudrouter-open-sdk"
 version = "0.1.0"
 dependencies = [
  "http 1.5.0",
- "reqwest 0.12.28",
+ "reqwest 0.13.4",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4962,6 +4962,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "encoding_rs",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "h2 0.4.19",
@@ -5720,7 +5721,7 @@ name = "sdkwork-agents-tool-cloudrouter"
 version = "0.1.0"
 dependencies = [
  "cloudrouter-open-sdk",
- "reqwest 0.12.28",
+ "reqwest 0.13.4",
  "sdkwork-agent-kernel",
  "sdkwork-agent-provider-rig",
  "sdkwork-agents-tool-contract",

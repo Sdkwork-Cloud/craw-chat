@@ -534,14 +534,18 @@ export function createSdkworkChatPcDevPlan({
   mergedEnv[SDKWORK_IM_PC_DEV_HOST_ENV] = devServer.host;
   mergedEnv[SDKWORK_IM_PC_DEV_PORT_ENV] = String(devServer.port);
   const applicationPublicHttpUrl = resolveApplicationPublicHttpUrl(mergedEnv);
-  const applicationPublicWebSocketUrl = deriveWebSocketBaseUrlFromHttpBaseUrl(
-    applicationPublicHttpUrl,
-  );
   const platformApiGatewayBaseUrl = resolvePlatformApiGatewayBaseUrl({
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
   });
   const standaloneSingleIngress = isStandaloneSingleIngress(mergedEnv);
+  // Standalone single-ingress: WebSocket rides the same application edge as HTTP.
+  // Cloud dual-ingress: WebSocket must ride the platform api edge — the same base
+  // domain as the SDK base URL — because the application im-* edge only proxies
+  // /api/ and serves static files (a WS handshake there fails with HTTP 200).
+  const applicationPublicWebSocketUrl = standaloneSingleIngress
+    ? deriveWebSocketBaseUrlFromHttpBaseUrl(applicationPublicHttpUrl)
+    : deriveWebSocketBaseUrlFromHttpBaseUrl(platformApiGatewayBaseUrl);
   const rendererInputEnv = {
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,

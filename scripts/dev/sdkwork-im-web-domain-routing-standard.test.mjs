@@ -20,12 +20,45 @@ const expectedUrls = {
   test: 'https://im-test.sdkwork.com/',
   staging: 'https://im-staging.sdkwork.com/',
   production: 'https://im.sdkwork.com/',
+  demo: 'https://im-demo.sdkwork.com/',
 };
+// Web ingress routing stays on the four canonical lifecycle environments; the
+// demo environment is deployment/topology-only (no im-web-ingress entry).
+const webIngressEnvironments = ['development', 'test', 'staging', 'production'];
+const multiBrandBaseDomains = [
+  'sdkwork.com',
+  'birdcoder.com',
+  'dtupay.com',
+  'sdkwork.cn',
+  'birdcoder.cn',
+  'dtupay.cn',
+  'skubc.com',
+  'skubc.cn',
+  'zowalk.com',
+  'zowalk.cn',
+  'offer86.com',
+  'offer86.cn',
+  '86offer.com',
+  '86offer.cn',
+];
+const cloudApiBaseUrlList = (role, environmentSuffix) =>
+  multiBrandBaseDomains.map((baseDomain) => `https://${role}${environmentSuffix}.${baseDomain}`).join(';');
 const expectedCloudApiBaseUrls = {
-  development: 'https://api-dev.sdkwork.com/',
-  test: 'https://api-test.sdkwork.com/',
-  staging: 'https://api-staging.sdkwork.com/',
-  production: 'https://api.sdkwork.com/',
+  development: cloudApiBaseUrlList('api', '-dev'),
+  test: cloudApiBaseUrlList('api', '-test'),
+  staging: cloudApiBaseUrlList('api', '-staging'),
+  production: cloudApiBaseUrlList('api', ''),
+  demo: cloudApiBaseUrlList('api', '-demo'),
+};
+// Topology env files pin the primary brand origin for the server-side gateway
+// variable; the full multi-brand edge set lives in the deployment config and is
+// materialized into the browser runtime env at build time.
+const expectedPrimaryGatewayOrigins = {
+  development: 'https://api-dev.sdkwork.com',
+  test: 'https://api-test.sdkwork.com',
+  staging: 'https://api-staging.sdkwork.com',
+  production: 'https://api.sdkwork.com',
+  demo: 'https://api-demo.sdkwork.com',
 };
 
 for (const [environment, expectedUrl] of Object.entries(expectedUrls)) {
@@ -52,7 +85,7 @@ assert.equal(
   routing.authority.deploymentConfigPath,
   '../etc/sdkwork.deployment.config.json',
 );
-assert.deepEqual(routing.environments, Object.keys(expectedUrls));
+assert.deepEqual(routing.environments, webIngressEnvironments);
 assert.equal(routing.authority.apiDeploymentSpecPath, 'im-api-deployment.spec.json');
 assert.deepEqual(topology.vocabulary.environment.allowed, Object.keys(expectedUrls));
 for (const deploymentProfile of ['cloud', 'standalone']) {
@@ -69,24 +102,34 @@ for (const deploymentProfile of ['cloud', 'standalone']) {
     assert.match(profileSource, new RegExp(`SDKWORK_IM_ENVIRONMENT=${environment}`, 'u'));
     if (deploymentProfile === 'cloud') {
       const appPublicUrl = expectedUrls[environment].replace(/\/$/u, '');
-      const appPublicWsUrl = appPublicUrl
-        .replace(/^http:/u, 'ws:')
+      // VITE build values carry no dev-port: the :3801 binding is a
+      // dev-process/dev-server concern (SDKWORK_IM_WEB_DEV_INGRESS_BIND) and
+      // must not leak into VITE build values.
+      const viteAppPublicUrl = appPublicUrl.replace(
+        /^http:\/\/im-dev\.sdkwork\.com:3801$/u,
+        'http://im-dev.sdkwork.com',
+      );
+      // Cloud realtime WebSocket rides the platform api edge — the same base
+      // domain as the SDK base URL — because the application im-* edge only
+      // proxies /api/ and serves static files, so a WS handshake there fails
+      // with an unexpected HTTP 200 response.
+      const cloudWebSocketUrl = expectedPrimaryGatewayOrigins[environment]
         .replace(/^https:/u, 'wss:');
       assert.ok(
         profileSource.includes(`SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=${appPublicUrl}`),
         `cloud env application public http URL must be ${appPublicUrl}`,
       );
       assert.ok(
-        profileSource.includes(`SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=${appPublicWsUrl}`),
-        `cloud env application public websocket URL must be ${appPublicWsUrl}`,
+        profileSource.includes(`VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=${viteAppPublicUrl}`),
+        `cloud env VITE application public http URL must be ${viteAppPublicUrl}`,
       );
       assert.ok(
-        profileSource.includes(`VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=${appPublicUrl}`),
-        `cloud env VITE application public http URL must be ${appPublicUrl}`,
+        profileSource.includes(`SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=${cloudWebSocketUrl}`),
+        `cloud env application public websocket URL must be ${cloudWebSocketUrl}`,
       );
       assert.ok(
-        profileSource.includes(`VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=${appPublicWsUrl}`),
-        `cloud env VITE application public websocket URL must be ${appPublicWsUrl}`,
+        profileSource.includes(`VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=${cloudWebSocketUrl}`),
+        `cloud env VITE application public websocket URL must be ${cloudWebSocketUrl}`,
       );
       const appHttpLine = profileSource.match(/SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=(.+)/u)?.[1] ?? '';
       assert.doesNotMatch(
@@ -94,12 +137,20 @@ for (const deploymentProfile of ['cloud', 'standalone']) {
         /^https?:\/\/api(?:-|\.)/u,
         'cloud env application public URL must not use the api-* platform host',
       );
-      const cloudApiBaseUrl = expectedCloudApiBaseUrls[environment].replace(/\/$/u, '');
+      const websocketLine = profileSource.match(
+        /VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=(.+)/u,
+      )?.[1] ?? '';
+      assert.doesNotMatch(
+        websocketLine,
+        /^wss?:\/\/im(?:-|\.)/u,
+        'cloud env websocket base must ride the api-* platform edge, not the im-* application web ingress edge',
+      );
+      const primaryGatewayOrigin = expectedPrimaryGatewayOrigins[environment];
       assert.ok(
-        profileSource.includes(`SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=${cloudApiBaseUrl}`),
+        profileSource.includes(`SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=${primaryGatewayOrigin}`),
       );
       assert.ok(
-        profileSource.includes(`VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=${cloudApiBaseUrl}`),
+        profileSource.includes(`VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=${primaryGatewayOrigin}`),
       );
     } else {
       if (environment === 'development') {

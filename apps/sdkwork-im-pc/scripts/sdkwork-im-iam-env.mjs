@@ -265,7 +265,13 @@ export function resolveSdkworkChatIamCommandEnv({
     ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL : undefined);
   const applicationHttpUrl = configuredApplicationHttpUrl
     ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_APPLICATION_PUBLIC_HTTP_URL : undefined);
+  // Cloud SaaS dual-ingress: WebSocket rides the platform api edge (the SDK base
+  // domain), not the application web ingress edge — the im-* edge never terminates
+  // WebSocket upgrades.
   const applicationWebSocketUrl = resolveConfiguredApplicationWebSocketUrl(nextEnv)
+    ?? (resolvedDeploymentMode === 'cloud-saas' && configuredPlatformApiBaseUrl
+      ? deriveWebSocketBaseUrlFromHttpBaseUrl(configuredPlatformApiBaseUrl)
+      : undefined)
     ?? deriveWebSocketBaseUrlFromHttpBaseUrl(configuredApplicationHttpUrl)
     ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL : undefined);
 

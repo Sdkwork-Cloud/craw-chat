@@ -320,6 +320,9 @@
       "@sdkwork/im-app-sdk": "workspace:*",
       "@sdkwork/im-backend-sdk": "workspace:*",
       "@sdkwork/sdk-common": "workspace:*"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

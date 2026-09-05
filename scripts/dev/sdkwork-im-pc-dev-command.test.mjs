@@ -745,6 +745,11 @@ assert.deepEqual(
   'cloud dev must start only the client and consume the configured remote API surfaces',
 );
 assert.equal(
+  cloudAssemblyPlan.processes[0].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'wss://api-dev.sdkwork.com',
+  'cloud renderer must ride the platform api edge for realtime WebSocket (same SDK base domain), not the im-* application web ingress edge',
+);
+assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),
   'http://127.0.0.1:4188,http://localhost:4188',
   'browser origin helper must derive CORS origins from the selected dev port',

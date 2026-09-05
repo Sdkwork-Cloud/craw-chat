@@ -89,11 +89,17 @@ export async function resolveSdkworkImPcViteDevEnv(env = process.env) {
   }
 
   const applicationPublicHttpUrl = resolveApplicationPublicHttpUrl(mergedEnv);
-  const applicationPublicWebSocketUrl = deriveWebSocketBaseUrlFromHttpBaseUrl(applicationPublicHttpUrl);
   const platformApiGatewayBaseUrl = resolvePlatformApiGatewayBaseUrl({
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
   });
+  // Standalone single-ingress: WebSocket rides the same application edge as HTTP.
+  // Cloud dual-ingress: WebSocket must ride the platform api edge — the same base
+  // domain as the SDK base URL — because the application im-* edge does not
+  // terminate WebSocket upgrades.
+  const applicationPublicWebSocketUrl = isStandaloneSingleIngress(mergedEnv)
+    ? deriveWebSocketBaseUrlFromHttpBaseUrl(applicationPublicHttpUrl)
+    : deriveWebSocketBaseUrlFromHttpBaseUrl(platformApiGatewayBaseUrl);
   const rendererInputEnv = {
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,

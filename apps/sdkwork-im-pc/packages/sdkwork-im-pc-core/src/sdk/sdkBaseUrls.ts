@@ -1,5 +1,10 @@
 import { IM_REALTIME_WS } from '@sdkwork/im-sdk';
-import { resolveBrowserCloudSdkBaseUrl } from '../../../../../../../sdkwork-specs/tools/browser-cloud-api-base.mjs';
+// Browser-safe mirror of sdkwork-specs/tools/browser-cloud-api-base.mjs.
+// The canonical specs tool is a Node script (node:fs/node:path + a
+// build-from-topology.mjs chain that pulls node:url/fileURLToPath); importing
+// it here crashed the browser bundle at runtime
+// (`TypeError: (0 , aa.fileURLToPath) is not a function`).
+import { resolveBrowserCloudSdkBaseUrl } from './browserCloudApiBase';
 import {
   DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
   DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL,
@@ -287,9 +292,16 @@ export function resolveImWebSocketBaseUrl(): string | undefined {
   if (explicitBaseUrl) {
     return normalizeWebSocketSdkBaseUrl(explicitBaseUrl);
   }
+  // Cloud dual-ingress: derive the WebSocket base from the platform api gateway
+  // edge first so the realtime connection shares the SDK base domain. In
+  // standalone single-ingress the platform gateway collapses onto the
+  // application edge, so this fallback stays correct there as well.
   return deriveWebSocketBaseUrlFromHttpBaseUrl(
-    readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL),
+    readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL),
   )
+    ?? deriveWebSocketBaseUrlFromHttpBaseUrl(
+      readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL),
+    )
     ?? (resolveLocalDevApplicationHttpBaseUrl()
       ? DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL
       : undefined)

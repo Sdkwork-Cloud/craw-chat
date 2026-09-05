@@ -422,12 +422,12 @@
   "cloudPublicHosts": {
     "application.public-ingress": {
       "httpHost": "im.sdkwork.com",
-      "websocketHost": "im.sdkwork.com",
-      "note": "chat.sdkwork.com is reserved for LLM conversational apps, not IM",
+      "websocketHost": "api.sdkwork.com",
+      "note": "cloud realtime WebSocket rides the platform.api-gateway edge (same SDK base domain), not the application web ingress edge",
       "environments": {
-        "development": { "httpHost": "im-dev.sdkwork.com", "websocketHost": "im-dev.sdkwork.com" },
-        "test": { "httpHost": "im-test.sdkwork.com", "websocketHost": "im-test.sdkwork.com" },
-        "staging": { "httpHost": "im-staging.sdkwork.com", "websocketHost": "im-staging.sdkwork.com" }
+        "development": { "httpHost": "im-dev.sdkwork.com", "websocketHost": "api-dev.sdkwork.com" },
+        "test": { "httpHost": "im-test.sdkwork.com", "websocketHost": "api-test.sdkwork.com" },
+        "staging": { "httpHost": "im-staging.sdkwork.com", "websocketHost": "api-staging.sdkwork.com" }
       }
     },
     "platform.api-gateway": {

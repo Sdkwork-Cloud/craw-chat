@@ -1,0 +1,14 @@
+{
+  "SDKWORK_DEPLOYMENT_PROFILE": "standalone",
+  "SDKWORK_ENVIRONMENT": "demo",
+  "SDKWORK_IAM_APP_API_BASE_URL": "http://im-demo.sdkwork.com:18073",
+  "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL": "http://im-demo.sdkwork.com:18073",
+  "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL": "ws://im-demo.sdkwork.com:18073",
+  "SDKWORK_IM_DEPLOYMENT_PROFILE": "standalone",
+  "SDKWORK_IM_ENVIRONMENT": "demo",
+  "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL": "http://im-demo.sdkwork.com:18073",
+  "SDKWORK_IM_PROFILE_ID": "standalone.demo",
+  "SDKWORK_IM_RUNTIME_TARGET": "flutter-android",
+  "SDKWORK_PROFILE_ID": "standalone.demo",
+  "SDKWORK_RUNTIME_TARGET": "flutter-android"
+}

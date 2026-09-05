@@ -481,8 +481,9 @@
   "cloudPublicHosts": {
     "application.public-ingress": {
       "httpHost": "im.sdkwork.com",
-      "websocketHost": "im.sdkwork.com",
+      "websocketHost": "api.sdkwork.com",
       "note": "chat.sdkwork.com is reserved for LLM conversational apps, not IM",
+      "websocketNote": "cloud realtime WebSocket rides the platform.api-gateway edge (api.sdkwork.com), the same base domain as the SDK base URL; the im-* application edge only proxies /api/ and serves static files and never terminates WebSocket upgrades",
       "environments": {
         "development": {
           "httpHosts": [
